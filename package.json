@@ -1,0 +1,56 @@
+{
+  "name": "pipeline-builder-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Pipeline Builder - A visual data pipeline builder inspired by Palantir Foundry",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc && vite build",
+    "preview": "vite preview",
+    "lint": "eslint . --ext .vue,.js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix --ignore-path .gitignore",
+    "format": "prettier --write src/"
+  },
+  "dependencies": {
+    "vue": "^3.4.0",
+    "vue-router": "^4.2.5",
+    "pinia": "^2.1.7",
+    "ant-design-vue": "^4.1.0",
+    "@ant-design/icons-vue": "^7.0.1",
+    "@antv/x6": "^2.18.1",
+    "@antv/x6-plugin-selection": "^2.1.6",
+    "@antv/x6-plugin-snapline": "^2.1.7",
+    "@antv/x6-plugin-keyboard": "^2.1.6",
+    "@antv/x6-plugin-clipboard": "^2.1.6",
+    "@antv/x6-plugin-history": "^2.2.4",
+    "@antv/x6-plugin-transform": "^2.1.8",
+    "@antv/x6-plugin-minimap": "^2.0.7",
+    "@antv/x6-plugin-scroller": "^2.0.9",
+    "@antv/g2": "^5.1.0",
+    "axios": "^1.6.5",
+    "dayjs": "^1.11.10",
+    "lodash-es": "^4.17.21",
+    "pinia-plugin-persistedstate": "^3.2.1",
+    "@vueuse/core": "^10.7.2"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.0.3",
+    "vite": "^5.0.11",
+    "typescript": "^5.3.3",
+    "vue-tsc": "^1.8.27",
+    "@types/node": "^20.11.5",
+    "@types/lodash-es": "^4.17.12",
+    "@typescript-eslint/eslint-plugin": "^6.19.1",
+    "@typescript-eslint/parser": "^6.19.1",
+    "eslint": "^8.56.0",
+    "eslint-plugin-vue": "^9.20.1",
+    "prettier": "^3.2.4",
+    "less": "^4.2.0",
+    "unplugin-auto-import": "^0.17.5",
+    "unplugin-vue-components": "^0.26.0"
+  },
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=9.0.0"
+  }
+}

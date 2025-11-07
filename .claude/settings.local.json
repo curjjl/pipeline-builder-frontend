@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(test:*)",
+      "Bash(npm install:*)",
+      "WebFetch(domain:learn.palantir.com)",
+      "WebFetch(domain:www.palantir.com)",
+      "Bash(cat:*)",
+      "Bash(\"D:\\workFiles\\Palantir\\Ontology\\Pipeline\\pipeline-builder-frontend\\src\\views\\pipeline\\PipelineEditor.vue\")",
+      "Bash(npm run dev:*)",
+      "Bash(tree /F /A \"D:\\workFiles\\Palantir\\Ontology\\Pipeline\\pipeline-builder-frontend\\src\")"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
