@@ -43,6 +43,7 @@ declare module 'vue' {
     GenericTransform: typeof import('./../components/pipeline/transforms/GenericTransform.vue')['default']
     GraphCanvas: typeof import('./../components/pipeline/GraphCanvas.vue')['default']
     GroupByTransform: typeof import('./../components/pipeline/transforms/GroupByTransform.vue')['default']
+    JoinTransform: typeof import('./../components/pipeline/transforms/JoinTransform.vue')['default']
     NodeToolbar: typeof import('./../components/pipeline/NodeToolbar.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

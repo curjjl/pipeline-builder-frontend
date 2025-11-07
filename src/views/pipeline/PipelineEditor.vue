@@ -56,61 +56,94 @@
       </div>
     </div>
 
-    <!-- Toolbar -->
+    <!-- Toolbar - Palantir Style -->
     <div class="toolbar">
-      <div class="toolbar-left">
-        <ToolButton
-          icon="select"
-          label="Select"
-          :active="currentTool === 'select'"
-          @click="currentTool = 'select'"
-        />
+      <div class="toolbar-section">
+        <span class="toolbar-label">Tools</span>
+        <a-button class="toolbar-btn" :class="{ active: currentTool === 'move' }" @click="currentTool = 'move'">
+          <DragOutlined />
+        </a-button>
+        <a-button class="toolbar-btn" :class="{ active: currentTool === 'select' }" @click="currentTool = 'select'">
+          <SelectOutlined />
+        </a-button>
+      </div>
 
-        <a-dropdown>
-          <ToolButton icon="add" label="Add data" dropdown />
+      <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
+
+      <div class="toolbar-section">
+        <span class="toolbar-label">Select</span>
+      </div>
+
+      <div class="toolbar-section">
+        <span class="toolbar-label">Remove</span>
+      </div>
+
+      <div class="toolbar-section">
+        <span class="toolbar-label">Layout</span>
+      </div>
+
+      <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
+
+      <div class="toolbar-section">
+        <a-dropdown trigger="click">
+          <a-button class="toolbar-dropdown-btn">
+            <DownloadOutlined style="margin-right: 6px;" />
+            Add data
+            <DownOutlined style="margin-left: 6px; font-size: 10px;" />
+          </a-button>
           <template #overlay>
-            <a-menu @click="handleAddData">
+            <a-menu @click="handleAddData" class="add-data-menu">
               <a-menu-item key="products">
-                <DatabaseOutlined />
-                Products (12 rows)
+                <DatabaseOutlined style="margin-right: 8px;" />
+                <span>Products</span>
+                <span style="color: #98A2B3; margin-left: 8px;">(12 rows)</span>
               </a-menu-item>
               <a-menu-item key="customers">
-                <DatabaseOutlined />
-                Customers (10 rows)
+                <DatabaseOutlined style="margin-right: 8px;" />
+                <span>Customers</span>
+                <span style="color: #98A2B3; margin-left: 8px;">(10 rows)</span>
               </a-menu-item>
               <a-menu-item key="transactions">
-                <DatabaseOutlined />
-                Transactions (15 rows)
+                <DatabaseOutlined style="margin-right: 8px;" />
+                <span>Transactions</span>
+                <span style="color: #98A2B3; margin-left: 8px;">(15 rows)</span>
               </a-menu-item>
             </a-menu>
           </template>
         </a-dropdown>
-
-        <ToolButton
-          icon="transform"
-          label="Transform"
-          :disabled="!selectedNode"
-          @click="showTransformPanel"
-        />
-
-        <a-divider type="vertical" />
-
-        <ToolButton
-          icon="undo"
-          label="Undo"
-          :disabled="!canUndo"
-          @click="handleUndo"
-        />
-        <ToolButton
-          icon="redo"
-          label="Redo"
-          :disabled="!canRedo"
-          @click="handleRedo"
-        />
       </div>
 
-      <div class="toolbar-right">
-        <a-button size="small" @click="handleRunPipeline">
+      <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
+
+      <div class="toolbar-section">
+        <span class="toolbar-label">Transform</span>
+        <a-button class="toolbar-icon-btn" @click="showTransformPanel" :disabled="!selectedNode">
+          <FilterOutlined />
+        </a-button>
+        <a-button class="toolbar-icon-btn" @click="handleAddJoin">
+          <MergeCellsOutlined />
+        </a-button>
+        <a-button class="toolbar-icon-btn" @click="handleAddOutputNode">
+          <ExportOutlined />
+        </a-button>
+      </div>
+
+      <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
+
+      <div class="toolbar-section">
+        <span class="toolbar-label">Edit</span>
+        <a-button class="toolbar-icon-btn" @click="handleUndo" :disabled="!canUndo">
+          <UndoOutlined />
+        </a-button>
+        <a-button class="toolbar-icon-btn" @click="handleRedo" :disabled="!canRedo">
+          <RedoOutlined />
+        </a-button>
+      </div>
+
+      <div style="flex: 1;"></div>
+
+      <div class="toolbar-section">
+        <a-button type="primary" @click="handleRunPipeline" style="margin-right: 8px;">
           <PlayCircleOutlined /> Run
         </a-button>
       </div>
@@ -335,7 +368,15 @@ import {
   ExportOutlined,
   EyeOutlined,
   FunctionOutlined,
-  RightOutlined
+  RightOutlined,
+  DragOutlined,
+  SelectOutlined,
+  DownloadOutlined,
+  DownOutlined,
+  FilterOutlined,
+  MergeCellsOutlined,
+  UndoOutlined,
+  RedoOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -430,10 +471,44 @@ function handleAddData({ key }: { key: string }) {
 
   pipelineStore.addNode(node)
   message.success(`Added dataset: ${dataset.displayName}`)
+}
 
-  if (nodes.value.length === 1) {
-    showHint.value = false
+// Add join node
+function handleAddJoin() {
+  const node: Node = {
+    id: `node-${nodeIdCounter++}`,
+    type: 'join',
+    name: 'Join',
+    x: 200 + Math.random() * 100,
+    y: 200 + Math.random() * 100,
+    data: {
+      joinConfig: {
+        type: 'inner',
+        leftKey: '',
+        rightKey: ''
+      }
+    }
   }
+
+  pipelineStore.addNode(node)
+  message.success('Added Join node')
+}
+
+// Add output node to canvas
+function handleAddOutputNode() {
+  const node: Node = {
+    id: `node-${nodeIdCounter++}`,
+    type: 'output',
+    name: 'Output',
+    x: 300 + Math.random() * 100,
+    y: 300 + Math.random() * 100,
+    data: {
+      outputName: 'result_dataset'
+    }
+  }
+
+  pipelineStore.addNode(node)
+  message.success('Added Output node')
 }
 
 // Show transform panel
@@ -636,7 +711,7 @@ function handleZoom(type: 'in' | 'out' | 'fit') {
 }
 
 // Save
-function handleSave() {
+async function handleSave() {
   try {
     // Get current graph data from GraphCanvas
     const graph = canvasRef.value?.getGraph()
@@ -688,7 +763,9 @@ function handleSave() {
     console.log(JSON.stringify(pipelineData, null, 2))
     console.log('====================================')
 
-    message.success('Pipeline saved (check console for data structure)')
+    // Save to store
+    await pipelineStore.savePipeline()
+    message.success('Pipeline saved successfully!')
   } catch (error) {
     console.error('Error saving pipeline:', error)
     message.error('Failed to save pipeline')
@@ -719,9 +796,34 @@ function handleRedo() {
 async function handleRunPipeline() {
   message.loading({ content: 'Running pipeline...', key: 'run' })
 
-  await new Promise(resolve => setTimeout(resolve, 2000))
+  try {
+    const result = await pipelineStore.executePipeline()
 
-  message.success({ content: 'Pipeline completed successfully', key: 'run' })
+    if (result.success) {
+      message.success({ content: result.message, key: 'run' })
+
+      // Log execution results
+      console.log('====================================')
+      console.log('Pipeline Execution Results')
+      console.log('====================================')
+      if (result.results) {
+        result.results.forEach((data, nodeId) => {
+          const node = pipelineStore.getNodeById(nodeId)
+          console.log(`Node: ${node?.name || nodeId}`)
+          console.log(`Rows: ${data.length}`)
+          console.log('Sample data:', data.slice(0, 3))
+          console.log('------------------------------------')
+        })
+      }
+      console.log('====================================')
+    } else {
+      message.error({ content: result.message, key: 'run' })
+      console.error('Pipeline execution failed:', result.message)
+    }
+  } catch (error: any) {
+    message.error({ content: 'Pipeline execution failed', key: 'run' })
+    console.error('Pipeline execution error:', error)
+  }
 }
 
 // Add output
@@ -784,10 +886,29 @@ function stopResize() {
 
 // ==================== Lifecycle ====================
 
-onMounted(() => {
+onMounted(async () => {
   const pipelineId = route.params.id as string
+
   if (pipelineId) {
-    // TODO: Load pipeline data from backend
+    // Try to load existing pipeline
+    const loaded = await pipelineStore.loadPipeline(pipelineId)
+    if (loaded) {
+      message.success('Pipeline loaded')
+      return
+    }
+  }
+
+  // Initialize a new pipeline if not loaded
+  if (!pipelineStore.currentPipeline) {
+    pipelineStore.setPipeline({
+      id: pipelineId || `pipeline_${Date.now()}`,
+      name: pipelineName.value,
+      description: 'A new data pipeline',
+      nodes: [],
+      edges: [],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    })
   }
 })
 
@@ -892,24 +1013,113 @@ onUnmounted(() => {
 
 // ==================== Toolbar ====================
 .toolbar {
-  height: 56px;
-  background: #F5F6F7;
-  border-bottom: 1px solid #E4E7EB;
+  height: 48px;
+  background: #E8EAED;
+  border-bottom: 1px solid #D4D7DC;
   display: flex;
   align-items: center;
-  justify-content: space-between;
   padding: 0 16px;
   flex-shrink: 0;
+  gap: 0;
 
-  .toolbar-left {
+  .toolbar-section {
     display: flex;
     align-items: center;
-    gap: 8px;
+    gap: 6px;
   }
 
-  .toolbar-right {
+  .toolbar-label {
+    font-size: 12px;
+    color: #5F6368;
+    font-weight: 500;
+    margin-right: 4px;
+  }
+
+  .toolbar-btn {
+    height: 32px;
+    min-width: 32px;
+    padding: 4px 8px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #5F6368;
+    border-radius: 4px;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #D4D7DC;
+      border-color: #BFC3C9;
+    }
+
+    &.active {
+      background: #FFFFFF;
+      border-color: #C4C7CC;
+      color: #202124;
+    }
+  }
+
+  .toolbar-dropdown-btn {
+    height: 32px;
+    padding: 4px 12px;
+    border: 1px solid #BFC3C9;
+    background: #FFFFFF;
+    color: #202124;
+    border-radius: 4px;
+    font-size: 13px;
+    font-weight: 400;
+    transition: all 0.2s;
     display: flex;
-    gap: 8px;
+    align-items: center;
+
+    &:hover {
+      border-color: #98A2B3;
+      background: #F8F9FA;
+    }
+  }
+
+  .toolbar-icon-btn {
+    height: 32px;
+    width: 32px;
+    min-width: 32px;
+    padding: 0;
+    border: 1px solid transparent;
+    background: transparent;
+    color: #5F6368;
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+
+    &:hover:not(:disabled) {
+      background: #D4D7DC;
+      border-color: #BFC3C9;
+    }
+
+    &:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// ==================== Add Data Menu ====================
+.add-data-menu {
+  :deep(.ant-dropdown-menu-item) {
+    padding: 10px 16px;
+    font-size: 13px;
+    color: #202124;
+    display: flex;
+    align-items: center;
+    transition: background-color 0.2s;
+
+    &:hover {
+      background-color: #F1F3F4;
+    }
+
+    .anticon {
+      font-size: 16px;
+      color: #4285F4;
+    }
   }
 }
 

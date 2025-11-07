@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
-import { applyTransforms, type Transform, type TransformResult } from '@/utils/transform'
+import { applyTransforms, joinDatasets, type Transform, type TransformResult } from '@/utils/transform'
 
 export interface Node {
   id: string
@@ -215,7 +215,26 @@ export const usePipelineStore = defineStore('pipeline', {
 
         case 'join':
           // 连接节点：获取多个输入并执行join
-          // TODO: 实现join逻辑
+          const joinInputs = this.getNodeInputs(nodeId)
+          if (joinInputs.length >= 2) {
+            const leftData = await this.getNodeData(joinInputs[0].id)
+            const rightData = await this.getNodeData(joinInputs[1].id)
+
+            // 从节点配置中获取join参数
+            const joinConfig = node.data.joinConfig || {
+              type: 'inner',
+              leftKey: Object.keys(leftData[0] || {})[0],
+              rightKey: Object.keys(rightData[0] || {})[0]
+            }
+
+            data = joinDatasets(
+              leftData,
+              rightData,
+              joinConfig.leftKey,
+              joinConfig.rightKey,
+              joinConfig.type
+            )
+          }
           break
 
         case 'output':
@@ -305,6 +324,92 @@ export const usePipelineStore = defineStore('pipeline', {
       this.transformCache.clear()
     },
 
+    // 执行Pipeline - 计算所有节点的数据
+    async executePipeline(): Promise<{ success: boolean; message: string; results?: Map<string, any[]> }> {
+      try {
+        if (this.nodes.length === 0) {
+          return { success: false, message: 'Pipeline is empty' }
+        }
+
+        // 清除所有缓存以重新计算
+        this.nodeDataCache.clear()
+
+        // 获取所有节点并按拓扑排序
+        const sortedNodes = this.topologicalSort()
+        if (!sortedNodes) {
+          return { success: false, message: 'Pipeline contains cycles' }
+        }
+
+        const results = new Map<string, any[]>()
+
+        // 按顺序执行每个节点
+        for (const nodeId of sortedNodes) {
+          const data = await this.getNodeData(nodeId)
+          results.set(nodeId, data)
+        }
+
+        return {
+          success: true,
+          message: `Pipeline executed successfully. Processed ${sortedNodes.length} nodes.`,
+          results
+        }
+      } catch (error: any) {
+        return {
+          success: false,
+          message: `Pipeline execution failed: ${error.message}`
+        }
+      }
+    },
+
+    // 拓扑排序（用于确定执行顺序）
+    topologicalSort(): string[] | null {
+      const inDegree = new Map<string, number>()
+      const adjList = new Map<string, string[]>()
+
+      // 初始化
+      this.nodes.forEach(node => {
+        inDegree.set(node.id, 0)
+        adjList.set(node.id, [])
+      })
+
+      // 构建图
+      this.edges.forEach(edge => {
+        adjList.get(edge.source)!.push(edge.target)
+        inDegree.set(edge.target, (inDegree.get(edge.target) || 0) + 1)
+      })
+
+      // 找到所有入度为0的节点
+      const queue: string[] = []
+      inDegree.forEach((degree, nodeId) => {
+        if (degree === 0) {
+          queue.push(nodeId)
+        }
+      })
+
+      const result: string[] = []
+
+      while (queue.length > 0) {
+        const nodeId = queue.shift()!
+        result.push(nodeId)
+
+        // 减少邻居节点的入度
+        adjList.get(nodeId)!.forEach(neighbor => {
+          const newDegree = inDegree.get(neighbor)! - 1
+          inDegree.set(neighbor, newDegree)
+          if (newDegree === 0) {
+            queue.push(neighbor)
+          }
+        })
+      }
+
+      // 如果结果数量不等于节点数量，说明存在环
+      if (result.length !== this.nodes.length) {
+        return null
+      }
+
+      return result
+    },
+
     // 保存Pipeline
     async savePipeline(): Promise<void> {
       if (!this.currentPipeline) {
@@ -315,10 +420,52 @@ export const usePipelineStore = defineStore('pipeline', {
       this.currentPipeline.edges = this.edges
       this.currentPipeline.updatedAt = new Date().toISOString()
 
-      // TODO: 调用API保存
-      console.log('Saving pipeline:', this.currentPipeline)
+      // 保存到localStorage（模拟后端）
+      const pipelineData = {
+        ...this.currentPipeline,
+        nodeDataCache: Object.fromEntries(this.nodeDataCache),
+        transformCache: Object.fromEntries(this.transformCache)
+      }
+
+      localStorage.setItem(`pipeline_${this.currentPipeline.id}`, JSON.stringify(pipelineData))
+      console.log('Pipeline saved:', pipelineData)
 
       this.isDirty = false
+    },
+
+    // 加载Pipeline
+    async loadPipeline(id: string): Promise<boolean> {
+      try {
+        const data = localStorage.getItem(`pipeline_${id}`)
+        if (!data) {
+          return false
+        }
+
+        const pipelineData = JSON.parse(data)
+
+        this.setPipeline({
+          id: pipelineData.id,
+          name: pipelineData.name,
+          description: pipelineData.description,
+          nodes: pipelineData.nodes,
+          edges: pipelineData.edges,
+          createdAt: pipelineData.createdAt,
+          updatedAt: pipelineData.updatedAt
+        })
+
+        // 恢复缓存
+        if (pipelineData.nodeDataCache) {
+          this.nodeDataCache = new Map(Object.entries(pipelineData.nodeDataCache))
+        }
+        if (pipelineData.transformCache) {
+          this.transformCache = new Map(Object.entries(pipelineData.transformCache))
+        }
+
+        return true
+      } catch (error) {
+        console.error('Failed to load pipeline:', error)
+        return false
+      }
     }
   },
 

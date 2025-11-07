@@ -12,7 +12,7 @@ import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { History } from '@antv/x6-plugin-history'
 import { MiniMap } from '@antv/x6-plugin-minimap'
 import type { Node, Edge } from '@/stores/modules/pipeline'
-import { registerDatasetNode, registerTransformNode } from './nodes/register'
+import { registerDatasetNode, registerTransformNode, registerJoinNode, registerOutputNode } from './nodes/register'
 
 interface Props {
   nodes?: Node[]
@@ -50,11 +50,13 @@ const initGraph = () => {
   // 注册自定义节点
   registerDatasetNode()
   registerTransformNode()
+  registerJoinNode()
+  registerOutputNode()
 
   graph = new Graph({
     container: containerRef.value,
     background: {
-      color: '#ECEEF1'
+      color: '#F1F3F4'
     },
     grid: {
       visible: false
@@ -520,16 +522,12 @@ const addNode = (nodeData: Node): X6Node | null => {
     shape: nodeData.type === 'dataset' ? 'dataset-node' : 'transform-node',
     x: nodeData.x,
     y: nodeData.y,
-    data: nodeData,
-    attrs: {
-      label: {
-        text: nodeData.name
-      },
-      meta: {
-        text: metaText
-      }
-    }
+    data: nodeData
   })
+
+  // Update text content after node creation to avoid overriding default attrs
+  node.attr('label/text', nodeData.name)
+  node.attr('meta/text', metaText)
 
   return node
 }

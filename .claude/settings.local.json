@@ -8,7 +8,9 @@
       "Bash(cat:*)",
       "Bash(\"D:\\workFiles\\Palantir\\Ontology\\Pipeline\\pipeline-builder-frontend\\src\\views\\pipeline\\PipelineEditor.vue\")",
       "Bash(npm run dev:*)",
-      "Bash(tree /F /A \"D:\\workFiles\\Palantir\\Ontology\\Pipeline\\pipeline-builder-frontend\\src\")"
+      "Bash(tree /F /A \"D:\\workFiles\\Palantir\\Ontology\\Pipeline\\pipeline-builder-frontend\\src\")",
+      "Bash(timeout:*)",
+      "WebFetch(domain:x6.antv.antgroup.com)"
     ],
     "deny": [],
     "ask": []
