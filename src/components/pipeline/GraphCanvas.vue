@@ -10,28 +10,33 @@ import { Selection } from '@antv/x6-plugin-selection'
 import { Clipboard } from '@antv/x6-plugin-clipboard'
 import { Keyboard } from '@antv/x6-plugin-keyboard'
 import { History } from '@antv/x6-plugin-history'
+import { MiniMap } from '@antv/x6-plugin-minimap'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { registerDatasetNode, registerTransformNode } from './nodes/register'
 
 interface Props {
   nodes?: Node[]
   edges?: Edge[]
+  showMinimap?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   nodes: () => [],
-  edges: () => []
+  edges: () => [],
+  showMinimap: true
 })
 
 const emit = defineEmits<{
   'node:click': [node: Node]
   'node:dblclick': [node: Node]
   'node:contextmenu': [payload: { node: Node; event: MouseEvent }]
+  'node:rename': [payload: { node: Node; name: string }]
   'edge:click': [edge: Edge]
   'edge:contextmenu': [payload: { edge: Edge; event: MouseEvent }]
   'canvas:click': []
   'node:added': [node: Node]
   'edge:added': [edge: Edge]
+  'edge:removed': [edge: Edge]
   'node:moved': [payload: { node: Node; position: { x: number; y: number } }]
 }>()
 
@@ -173,6 +178,22 @@ const initGraph = () => {
       })
     )
 
+  // 小地图插件（可选）
+  if (props.showMinimap) {
+    const minimapContainer = document.createElement('div')
+    minimapContainer.className = 'minimap-container'
+    containerRef.value?.appendChild(minimapContainer)
+
+    graph.use(
+      new MiniMap({
+        container: minimapContainer,
+        width: 200,
+        height: 150,
+        padding: 10
+      })
+    )
+  }
+
   // 绑定事件
   bindEvents()
 
@@ -227,13 +248,6 @@ const bindEvents = () => {
     graph?.cleanSelection()
   })
 
-  // 节点移动
-  graph.on('node:moved', ({ node }) => {
-    const nodeData = node.getData() as Node
-    const position = node.getPosition()
-    emit('node:moved', { node: nodeData, position })
-  })
-
   // 连接创建
   graph.on('edge:connected', ({ edge }) => {
     const edgeData: Edge = {
@@ -247,6 +261,15 @@ const bindEvents = () => {
 
   // 节点悬停效果
   graph.on('node:mouseenter', ({ node }) => {
+    // 显示端口并放大
+    const ports = node.getPorts()
+    ports.forEach(port => {
+      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible')
+      node.setPortProp(port.id!, 'attrs/circle/r', 5)
+      node.setPortProp(port.id!, 'attrs/circle/stroke', '#2D6EED')
+    })
+
+    // 添加边框工具
     if (!node.hasTools()) {
       node.addTools([
         {
@@ -265,36 +288,118 @@ const bindEvents = () => {
   })
 
   graph.on('node:mouseleave', ({ node }) => {
-    // Check if node is selected by checking if it's in the selection
+    // 检查节点是否被选中
     const selectedCells = graph!.getSelectedCells()
     const isSelected = selectedCells.some(cell => cell.id === node.id)
+
     if (!isSelected) {
+      // 隐藏端口
+      const ports = node.getPorts()
+      ports.forEach(port => {
+        node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden')
+        node.setPortProp(port.id!, 'attrs/circle/r', 4)
+        node.setPortProp(port.id!, 'attrs/circle/stroke', '#98A2B3')
+      })
       node.removeTools()
     }
+  })
+
+  // 节点拖拽开始
+  graph.on('node:change:position', ({ node, options }) => {
+    // 只在用户拖拽时添加阴影（不是程序化移动）
+    if (options.ui) {
+      // 检查是否已经有阴影，避免重复添加
+      const currentFilter = node.attr('body/filter')
+      if (!currentFilter) {
+        node.attr('body/filter', {
+          name: 'dropShadow',
+          args: {
+            dx: 0,
+            dy: 4,
+            blur: 8,
+            color: 'rgba(0, 0, 0, 0.2)'
+          }
+        })
+      }
+    }
+  })
+
+  // 节点拖拽结束
+  graph.on('node:moved', ({ node }) => {
+    // 移除拖拽阴影（设置为null）
+    node.attr('body/filter', null)
+
+    const nodeData = node.getData() as Node
+    const position = node.getPosition()
+    emit('node:moved', { node: nodeData, position })
   })
 
   // 节点选中
   graph.on('node:selected', ({ node }) => {
     node.attr('body/stroke', '#2D6EED')
     node.attr('body/strokeWidth', 2)
+
+    // 选中时保持端口可见
+    const ports = node.getPorts()
+    ports.forEach(port => {
+      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible')
+      node.setPortProp(port.id!, 'attrs/circle/stroke', '#2D6EED')
+    })
   })
 
   graph.on('node:unselected', ({ node }) => {
     node.attr('body/stroke', '#D0D5DD')
     node.attr('body/strokeWidth', 1)
     node.removeTools()
+
+    // 取消选中时隐藏端口
+    const ports = node.getPorts()
+    ports.forEach(port => {
+      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden')
+      node.setPortProp(port.id!, 'attrs/circle/stroke', '#98A2B3')
+    })
   })
 
   // 边悬停效果
   graph.on('edge:mouseenter', ({ edge }) => {
     edge.attr('line/stroke', '#2D6EED')
     edge.attr('line/strokeWidth', 3)
+
+    // 添加边工具按钮
+    if (!edge.hasTools()) {
+      edge.addTools([
+        {
+          name: 'vertices', // 顶点工具
+          args: {
+            attrs: {
+              fill: '#FFFFFF',
+              stroke: '#2D6EED',
+              'stroke-width': 2,
+              r: 5
+            }
+          }
+        },
+        {
+          name: 'button-remove', // 删除按钮
+          args: {
+            distance: '50%',
+            offset: { x: 0, y: -15 },
+            onClick({ view }: any) {
+              const edgeData = edge.getData() as Edge
+              emit('edge:removed', edgeData)
+              view.cell.remove()
+            }
+          }
+        }
+      ])
+    }
   })
 
   graph.on('edge:mouseleave', ({ edge }) => {
     if (!edge.isSelected()) {
       edge.attr('line/stroke', '#98A2B3')
       edge.attr('line/strokeWidth', 2)
+      edge.removeTools()
     }
   })
 
@@ -302,14 +407,33 @@ const bindEvents = () => {
   graph.on('edge:selected', ({ edge }) => {
     edge.attr('line/stroke', '#2D6EED')
     edge.attr('line/strokeWidth', 3)
+
+    // 选中时添加工具
+    if (!edge.hasTools()) {
+      edge.addTools([
+        {
+          name: 'vertices',
+          args: {
+            attrs: {
+              fill: '#FFFFFF',
+              stroke: '#2D6EED',
+              'stroke-width': 2,
+              r: 5
+            }
+          }
+        }
+      ])
+    }
   })
 
   graph.on('edge:unselected', ({ edge }) => {
     edge.attr('line/stroke', '#98A2B3')
     edge.attr('line/strokeWidth', 2)
+    edge.removeTools()
   })
 
   // 键盘快捷键
+  // 复制
   graph.bindKey(['ctrl+c', 'meta+c'], () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
@@ -318,6 +442,7 @@ const bindEvents = () => {
     return false
   })
 
+  // 粘贴
   graph.bindKey(['ctrl+v', 'meta+v'], () => {
     if (!graph!.isClipboardEmpty()) {
       const cells = graph!.paste({ offset: 32 })
@@ -327,11 +452,49 @@ const bindEvents = () => {
     return false
   })
 
+  // 删除
   graph.bindKey(['delete', 'backspace'], () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
       graph!.removeCells(cells)
     }
+    return false
+  })
+
+  // 撤销
+  graph.bindKey(['ctrl+z', 'meta+z'], () => {
+    if (graph!.canUndo()) {
+      graph!.undo()
+    }
+    return false
+  })
+
+  // 重做
+  graph.bindKey(['ctrl+y', 'meta+y', 'ctrl+shift+z', 'meta+shift+z'], () => {
+    if (graph!.canRedo()) {
+      graph!.redo()
+    }
+    return false
+  })
+
+  // 全选
+  graph.bindKey(['ctrl+a', 'meta+a'], () => {
+    const nodes = graph!.getNodes()
+    if (nodes.length) {
+      graph!.select(nodes)
+    }
+    return false
+  })
+
+  // 取消选择
+  graph.bindKey(['escape', 'esc'], () => {
+    graph!.cleanSelection()
+    return false
+  })
+
+  // 保存（触发自定义事件，由父组件处理）
+  graph.bindKey(['ctrl+s', 'meta+s'], () => {
+    // 阻止浏览器默认保存行为
     return false
   })
 }
@@ -518,10 +681,11 @@ defineExpose({
 
   :deep(.x6-node) {
     cursor: pointer;
+    transition: all 0.2s ease;
   }
 
   :deep(.x6-port-body) {
-    transition: all 0.2s;
+    transition: all 0.2s ease;
 
     &:hover {
       r: 6;
@@ -534,7 +698,7 @@ defineExpose({
     cursor: pointer;
 
     .x6-edge-line {
-      transition: all 0.2s;
+      transition: all 0.2s ease;
     }
 
     &:hover .x6-edge-line {
@@ -556,6 +720,48 @@ defineExpose({
   :deep(.snapline) {
     stroke: #2D6EED;
     stroke-dasharray: 5, 5;
+    stroke-width: 1.5;
+  }
+
+  // 小地图样式
+  :deep(.minimap-container) {
+    position: absolute;
+    right: 20px;
+    bottom: 80px;
+    border: 1px solid #D0D5DD;
+    border-radius: 6px;
+    background: #FFFFFF;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    overflow: hidden;
+    z-index: 100;
+
+    .x6-graph {
+      background: #F5F6F7;
+    }
+  }
+
+  // 工具按钮样式
+  :deep(.x6-edge-tool) {
+    cursor: pointer;
+
+    .x6-edge-tool-remove {
+      fill: #FFFFFF;
+      stroke: #EA4335;
+
+      &:hover {
+        fill: #EA4335;
+      }
+    }
+  }
+
+  :deep(.x6-node-tool) {
+    .x6-node-tool-boundary {
+      stroke: #2D6EED;
+      stroke-width: 2;
+      fill: rgba(45, 110, 237, 0.05);
+      rx: 6;
+      ry: 6;
+    }
   }
 }
 </style>

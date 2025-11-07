@@ -37,33 +37,44 @@ export function registerDatasetNode() {
           stroke: '#D0D5DD',
           fill: '#FFFFFF',
           rx: 6,
-          ry: 6
+          ry: 6,
+          filter: {
+            name: 'dropShadow',
+            args: {
+              dx: 0,
+              dy: 1,
+              blur: 3,
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          }
         },
         icon: {
           x: 12,
-          y: 12,
+          y: 14,
           width: 20,
           height: 20,
-          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjQiIGhlaWdodD0iMjQiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMyA2QzMgNC4zNDMxNSA0LjM0MzE1IDMgNiAzSDE4QzE5LjY1NjkgMyAyMSA0LjM0MzE1IDIxIDZWMThDMTkuNjU2OSAxOCAxOCAxOS42NTY5IDE4IDIxSDZDNC4zNDMxNSAyMSAzIDE5LjY1NjkgMyAxOFY2WiIgc3Ryb2tlPSIjNDI4NUY0IiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8bGluZSB4MT0iMyIgeTE9IjkiIHgyPSIyMSIgeTI9IjkiIHN0cm9rZT0iIzQyODVGNCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPGxpbmUgeDE9IjMiIHkxPSIxMyIgeDI9IjIxIiB5Mj0iMTMiIHN0cm9rZT0iIzQyODVGNCIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPGxpbmUgeDE9IjkiIHkxPSIzIiB4Mj0iOSIgeTI9IjIxIiBzdHJva2U9IiM0Mjg1RjQiIHN0cm9rZS13aWR0aD0iMiIvPgo8L3N2Zz4='
+          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyMCAyMCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cmVjdCB4PSIyIiB5PSIyIiB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHJ4PSIyIiBzdHJva2U9IiM0Mjg1RjQiIHN0cm9rZS13aWR0aD0iMS41IiBmaWxsPSJub25lIi8+CiAgPGxpbmUgeDE9IjIiIHkxPSI3IiB4Mj0iMTgiIHkyPSI3IiBzdHJva2U9IiM0Mjg1RjQiIHN0cm9rZS13aWR0aD0iMS41Ii8+CiAgPGxpbmUgeDE9IjIiIHkxPSIxMiIgeDI9IjE4IiB5Mj0iMTIiIHN0cm9rZT0iIzQyODVGNCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICA8bGluZSB4MT0iNyIgeTE9IjIiIHgyPSI3IiB5Mj0iMTgiIHN0cm9rZT0iIzQyODVGNCIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KPC9zdmc+'
         },
         label: {
-          x: 12,
-          y: 40,
-          fontSize: 14,
+          x: 38,
+          y: 24,
+          fontSize: 13,
           fontWeight: 500,
           fill: '#212121',
           text: 'Dataset',
           textAnchor: 'start',
-          textVerticalAnchor: 'middle'
+          textVerticalAnchor: 'middle',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
         meta: {
-          x: 12,
-          y: 58,
-          fontSize: 12,
+          x: 38,
+          y: 40,
+          fontSize: 11,
           fill: '#5F6368',
           text: '0 columns',
           textAnchor: 'start',
-          textVerticalAnchor: 'middle'
+          textVerticalAnchor: 'middle',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         }
       },
       ports: {
@@ -76,7 +87,10 @@ export function registerDatasetNode() {
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 2,
-                fill: '#FFFFFF'
+                fill: '#FFFFFF',
+                style: {
+                  visibility: 'hidden' // 默认隐藏
+                }
               }
             }
           },
@@ -88,7 +102,10 @@ export function registerDatasetNode() {
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 2,
-                fill: '#FFFFFF'
+                fill: '#FFFFFF',
+                style: {
+                  visibility: 'hidden' // 默认隐藏
+                }
               }
             }
           }
@@ -141,7 +158,16 @@ export function registerTransformNode() {
           stroke: '#D0D5DD',
           fill: '#FFFFFF',
           rx: 6,
-          ry: 6
+          ry: 6,
+          filter: {
+            name: 'dropShadow',
+            args: {
+              dx: 0,
+              dy: 1,
+              blur: 3,
+              color: 'rgba(0, 0, 0, 0.1)'
+            }
+          }
         },
         'left-bar': {
           width: 3,
@@ -153,29 +179,31 @@ export function registerTransformNode() {
         },
         icon: {
           x: 15,
-          y: 12,
+          y: 18,
           width: 18,
           height: 18,
           xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNNyA4TDMgMTJMNyAxNiIgc3Ryb2tlPSIjOTMzNEU2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik0xNyA4TDIxIDEyTDE3IDE2IiBzdHJva2U9IiM5MzM0RTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgPHBhdGggZD0iTTE0IDRMMTAgMjAiIHN0cm9rZT0iIzkzMzRFNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'
         },
         label: {
           x: 40,
-          y: 22,
-          fontSize: 14,
+          y: 21,
+          fontSize: 13,
           fontWeight: 500,
           fill: '#212121',
           text: 'Transform',
           textAnchor: 'start',
-          textVerticalAnchor: 'middle'
+          textVerticalAnchor: 'middle',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
         meta: {
           x: 40,
-          y: 38,
-          fontSize: 12,
+          y: 36,
+          fontSize: 11,
           fill: '#5F6368',
           text: '0 transformations',
           textAnchor: 'start',
-          textVerticalAnchor: 'middle'
+          textVerticalAnchor: 'middle',
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         }
       },
       ports: {
@@ -188,7 +216,10 @@ export function registerTransformNode() {
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 2,
-                fill: '#FFFFFF'
+                fill: '#FFFFFF',
+                style: {
+                  visibility: 'hidden' // 默认隐藏
+                }
               }
             }
           },
@@ -200,7 +231,10 @@ export function registerTransformNode() {
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 2,
-                fill: '#FFFFFF'
+                fill: '#FFFFFF',
+                style: {
+                  visibility: 'hidden' // 默认隐藏
+                }
               }
             }
           }

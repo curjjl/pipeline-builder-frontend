@@ -341,6 +341,7 @@ import {
 import { usePipelineStore } from '@/stores/modules/pipeline'
 import { getAllDatasets, getDatasetMeta } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
+import { graphToPipeline } from '@/utils/pipelineTransform'
 
 import GraphCanvas from '@/components/pipeline/GraphCanvas.vue'
 import ToolButton from '@/components/common/ToolButton.vue'
@@ -636,7 +637,62 @@ function handleZoom(type: 'in' | 'out' | 'fit') {
 
 // Save
 function handleSave() {
-  message.success('Pipeline saved')
+  try {
+    // Get current graph data from GraphCanvas
+    const graph = canvasRef.value?.getGraph()
+
+    if (!graph) {
+      message.error('Unable to get graph data')
+      return
+    }
+
+    // Convert X6 Graph to Pipeline JSON format
+    const pipelineData = graphToPipeline(graph, {
+      name: pipelineName.value,
+      description: 'Pipeline created in Pipeline Builder',
+      version: '1.0.0',
+      metadata: {
+        category: 'data-processing',
+        tags: [],
+        owner: 'current-user',
+        visibility: 'private',
+        status: 'draft'
+      },
+      configuration: {
+        execution: {
+          mode: 'auto'
+        }
+      }
+    })
+
+    // Output complete Pipeline data structure to console
+    console.log('====================================')
+    console.log('Pipeline Save - Complete Data Structure')
+    console.log('====================================')
+    console.log('Pipeline Data:', pipelineData)
+    console.log('------------------------------------')
+    console.log('Nodes Count:', pipelineData.graph.nodes.length)
+    console.log('Edges Count:', pipelineData.graph.edges.length)
+    console.log('------------------------------------')
+    console.log('Nodes Detail:')
+    pipelineData.graph.nodes.forEach((node, index) => {
+      console.log(`  [${index + 1}] ${node.label} (${node.type})`, node)
+    })
+    console.log('------------------------------------')
+    console.log('Edges Detail:')
+    pipelineData.graph.edges.forEach((edge, index) => {
+      console.log(`  [${index + 1}] ${edge.source.nodeId} -> ${edge.target.nodeId}`, edge)
+    })
+    console.log('====================================')
+    console.log('JSON Format:')
+    console.log(JSON.stringify(pipelineData, null, 2))
+    console.log('====================================')
+
+    message.success('Pipeline saved (check console for data structure)')
+  } catch (error) {
+    console.error('Error saving pipeline:', error)
+    message.error('Failed to save pipeline')
+  }
 }
 
 // Deploy
