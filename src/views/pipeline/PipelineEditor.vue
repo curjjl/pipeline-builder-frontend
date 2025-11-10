@@ -405,52 +405,102 @@
         <div v-show="bottomTab === 'selection-preview'" class="tab-content">
           <!-- About Tab -->
           <div v-show="subTab === 'about'" class="about-content">
-            <div class="about-section">
-              <label class="about-label">Enter description...</label>
-              <a-textarea
-                v-model:value="nodeDescription"
-                :rows="3"
-                placeholder="Add a description for this node..."
-                class="about-textarea"
-              />
+            <div v-if="!selectedNode" class="empty-state">
+              <p style="color: #98A2B3; text-align: center; padding: 40px 20px;">
+                Select a node to view its details
+              </p>
             </div>
-            <div class="about-meta">
-              <div class="meta-row">
-                <span class="meta-label">Updated</span>
-                <span class="meta-value">{{ selectedNode ? 'a few seconds ago' : '-' }} by Gena Coblenz</span>
+            <div v-else>
+              <div class="about-section">
+                <label class="about-label">Description</label>
+                <a-textarea
+                  v-model:value="nodeDescription"
+                  :rows="3"
+                  placeholder="Add a description for this node..."
+                  class="about-textarea"
+                />
               </div>
-              <div class="meta-row">
-                <span class="meta-label">Created</span>
-                <span class="meta-value">{{ selectedNode ? '2 minutes ago' : '-' }} by Gena Coblenz</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Location</span>
-                <span class="meta-value">/Ontologize Public-34fdb/[Gena] Palantir...</span>
-              </div>
-              <div class="meta-row">
-                <span class="meta-label">Type</span>
-                <span class="meta-value">Raw dataset</span>
+              <div class="about-meta">
+                <div class="meta-row">
+                  <span class="meta-label">Node Name</span>
+                  <span class="meta-value">{{ selectedNode.name }}</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Type</span>
+                  <span class="meta-value">{{ getNodeTypeLabel(selectedNode.type) }}</span>
+                </div>
+                <div class="meta-row" v-if="selectedNode.type === 'dataset' && selectedNode.data?.columnCount">
+                  <span class="meta-label">Columns</span>
+                  <span class="meta-value">{{ selectedNode.data.columnCount }} columns</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Updated</span>
+                  <span class="meta-value">a few seconds ago by Gena Coblenz</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Created</span>
+                  <span class="meta-value">2 minutes ago by Gena Coblenz</span>
+                </div>
+                <div class="meta-row">
+                  <span class="meta-label">Location</span>
+                  <span class="meta-value">/Ontologize Public-34fdb/[Gena] Palantir...</span>
+                </div>
               </div>
             </div>
           </div>
 
           <!-- Columns Tab -->
           <div v-show="subTab === 'columns'" class="columns-content">
-            <div class="columns-toolbar">
-              <a-input-search
-                placeholder="Search columns..."
-                style="width: 300px;"
-                size="small"
-              />
-              <a-button size="small">Clear</a-button>
-              <a-button size="small" type="primary">Generate</a-button>
+            <div v-if="!selectedNode || !selectedNodeColumns.length" class="empty-state">
+              <p style="color: #98A2B3; text-align: center; padding: 40px 20px;">
+                {{ !selectedNode ? 'Select a node to view columns' : 'No columns available for this node' }}
+              </p>
             </div>
-            <div class="columns-body">
-              <DataPreviewPanel
-                v-if="selectedNode"
-                :node="selectedNode"
-                mode="preview"
-              />
+            <div v-else class="columns-container">
+              <div class="columns-toolbar">
+                <a-input-search
+                  v-model:value="columnSearch"
+                  placeholder="Search columns..."
+                  style="width: 300px;"
+                  size="small"
+                />
+                <span class="column-count">{{ filteredColumns.length }} columns</span>
+              </div>
+              <div class="columns-list">
+                <div class="columns-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th style="width: 50px;"></th>
+                        <th>Column Name</th>
+                        <th>Type</th>
+                        <th>Sample Values</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr
+                        v-for="(col, index) in filteredColumns"
+                        :key="col.name"
+                        class="column-row"
+                      >
+                        <td style="text-align: center; color: #98A2B3;">{{ index + 1 }}</td>
+                        <td class="column-name-cell">
+                          <component :is="getColumnIconComponent(col.type)" style="margin-right: 8px; color: #4285F4;" />
+                          <span style="font-weight: 500;">{{ col.name }}</span>
+                        </td>
+                        <td>
+                          <a-tag :color="getColumnTypeColor(col.type)" size="small">
+                            {{ col.type }}
+                          </a-tag>
+                        </td>
+                        <td style="color: #5F6368;">
+                          {{ getColumnSampleValues(col) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -575,6 +625,7 @@ const showHint = ref(true)
 // Bottom panel state
 const subTab = ref('about')
 const nodeDescription = ref('')
+const columnSearch = ref('')
 
 // Nodes and edges
 const nodes = computed(() => pipelineStore.nodes)
@@ -598,6 +649,17 @@ const selectedNodeColumns = computed(() => {
   }
 
   return []
+})
+
+// Filtered columns based on search
+const filteredColumns = computed(() => {
+  if (!columnSearch.value) return selectedNodeColumns.value
+
+  const searchLower = columnSearch.value.toLowerCase()
+  return selectedNodeColumns.value.filter(col =>
+    col.name.toLowerCase().includes(searchLower) ||
+    col.type.toLowerCase().includes(searchLower)
+  )
 })
 
 // Outputs list
@@ -706,7 +768,9 @@ function showTransformPanel() {
 function handleNodeClick(node: Node) {
   pipelineStore.setSelectedNodes([node.id])
   bottomPanelVisible.value = true
-  bottomTab.value = 'preview'
+  bottomTab.value = 'selection-preview'
+  // 默认显示About标签页
+  subTab.value = 'about'
 }
 
 // Node double click
@@ -717,11 +781,61 @@ function handleNodeDoubleClick(node: Node) {
 }
 
 // Node context menu
-function handleNodeContextMenu({ node, x, y }: { node: Node; x: number; y: number }) {
+function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent }) {
+  // 阻止默认右键菜单
+  event.preventDefault()
+
   contextMenuTarget.value = node
-  contextMenuX.value = x
-  contextMenuY.value = y
+  // 使用鼠标的屏幕坐标
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+
   contextMenuItems.value = [
+    {
+      key: 'open',
+      label: 'Open',
+      icon: 'folder-open'
+    },
+    {
+      key: 'actions',
+      label: 'Actions',
+      icon: 'thunderbolt',
+      children: [
+        { key: 'action-1', label: 'Action 1' },
+        { key: 'action-2', label: 'Action 2' }
+      ]
+    },
+    {
+      key: 'rename',
+      label: 'Rename',
+      icon: 'edit'
+    },
+    {
+      key: 'copy-rid',
+      label: 'Copy RID',
+      icon: 'copy'
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'copy',
+      label: 'Copy',
+      icon: 'copy'
+    },
+    {
+      key: 'paste',
+      label: 'Paste',
+      icon: 'snippets'
+    },
+    {
+      key: 'duplicate',
+      label: 'Duplicate',
+      icon: 'copy'
+    },
+    {
+      type: 'divider'
+    },
     {
       key: 'preview',
       label: 'Preview data',
@@ -736,22 +850,9 @@ function handleNodeContextMenu({ node, x, y }: { node: Node; x: number; y: numbe
       type: 'divider'
     },
     {
-      key: 'duplicate',
-      label: 'Duplicate',
-      icon: 'copy'
-    },
-    {
-      key: 'rename',
-      label: 'Rename',
-      icon: 'edit'
-    },
-    {
-      type: 'divider'
-    },
-    {
       key: 'delete',
-      label: 'Delete',
-      icon: 'delete',
+      label: 'Remove node',
+      icon: 'minus-circle',
       danger: true
     }
   ]
@@ -765,10 +866,15 @@ function handleEdgeAdded(edge: Edge) {
 }
 
 // Edge context menu
-function handleEdgeContextMenu({ edge, x, y }: { edge: Edge; x: number; y: number }) {
+function handleEdgeContextMenu({ edge, event }: { edge: Edge; event: MouseEvent }) {
+  // 阻止默认右键菜单
+  event.preventDefault()
+
   contextMenuTarget.value = edge
-  contextMenuX.value = x
-  contextMenuY.value = y
+  // 使用鼠标的屏幕坐标
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+
   contextMenuItems.value = [
     {
       key: 'delete',
@@ -793,17 +899,31 @@ function handleContextMenuSelect(key: string) {
   if (!target) return
 
   switch (key) {
+    case 'open':
+      message.info(`Opening ${target.name || 'node'}...`)
+      break
+    case 'rename':
+      renameNode(target)
+      break
+    case 'copy-rid':
+      navigator.clipboard.writeText(target.id)
+      message.success('RID copied to clipboard')
+      break
+    case 'copy':
+      // 复制节点到剪贴板（已实现快捷键）
+      message.info('Copy functionality')
+      break
+    case 'paste':
+      message.info('Paste functionality')
+      break
+    case 'duplicate':
+      duplicateNode(target)
+      break
     case 'preview':
       handleNodeClick(target)
       break
     case 'transform':
       handleNodeDoubleClick(target)
-      break
-    case 'duplicate':
-      duplicateNode(target)
-      break
-    case 'rename':
-      renameNode(target)
       break
     case 'delete':
       if (target.source) {
@@ -816,6 +936,9 @@ function handleContextMenuSelect(key: string) {
         message.success('Node deleted')
       }
       break
+    default:
+      // 处理子菜单项
+      message.info(`Menu action: ${key}`)
   }
 
   contextMenuVisible.value = false
@@ -841,6 +964,60 @@ function renameNode(node: Node) {
     pipelineStore.updateNode(node.id, { name: newName })
     message.success('Node renamed')
   }
+}
+
+// Get node type label
+function getNodeTypeLabel(type: string): string {
+  const labels: Record<string, string> = {
+    'dataset': 'Raw dataset',
+    'transform': 'Transform node',
+    'join': 'Join node',
+    'filter': 'Filter node',
+    'aggregate': 'Aggregate node',
+    'output': 'Output node'
+  }
+  return labels[type] || 'Unknown type'
+}
+
+// Get column icon component based on type
+function getColumnIconComponent(type: string) {
+  const iconMap: Record<string, any> = {
+    'string': DatabaseOutlined,
+    'number': DatabaseOutlined,
+    'integer': DatabaseOutlined,
+    'boolean': DatabaseOutlined,
+    'date': DatabaseOutlined,
+    'datetime': DatabaseOutlined
+  }
+  return iconMap[type.toLowerCase()] || DatabaseOutlined
+}
+
+// Get column type color
+function getColumnTypeColor(type: string): string {
+  const colorMap: Record<string, string> = {
+    'string': 'blue',
+    'number': 'green',
+    'integer': 'green',
+    'boolean': 'purple',
+    'date': 'orange',
+    'datetime': 'orange'
+  }
+  return colorMap[type.toLowerCase()] || 'default'
+}
+
+// Get column sample values
+function getColumnSampleValues(col: any): string {
+  // 根据列类型生成示例数据
+  if (col.type === 'string') {
+    return 'Sample text, Another value, Test data...'
+  } else if (col.type === 'number' || col.type === 'integer') {
+    return '123, 456, 789...'
+  } else if (col.type === 'boolean') {
+    return 'true, false, true...'
+  } else if (col.type === 'date') {
+    return '2025-01-01, 2025-01-02...'
+  }
+  return 'N/A'
 }
 
 // Apply transform
@@ -892,26 +1069,36 @@ function handleZoom(type: 'in' | 'out' | 'fit') {
 
 // Save
 async function handleSave() {
+  // Validation
+  if (nodes.value.length === 0) {
+    message.warning('Cannot save empty pipeline. Please add at least one node.')
+    return
+  }
+
+  const saveKey = 'saving'
+  message.loading({ content: 'Saving pipeline...', key: saveKey })
+
   try {
     // Get current graph data from GraphCanvas
     const graph = canvasRef.value?.getGraph()
 
     if (!graph) {
-      message.error('Unable to get graph data')
+      message.error({ content: 'Unable to get graph data', key: saveKey })
       return
     }
 
     // Convert X6 Graph to Pipeline JSON format
     const pipelineData = graphToPipeline(graph, {
       name: pipelineName.value,
-      description: 'Pipeline created in Pipeline Builder',
+      description: nodeDescription.value || 'Pipeline created in Pipeline Builder',
       version: '1.0.0',
       metadata: {
         category: 'data-processing',
         tags: [],
-        owner: 'current-user',
+        owner: 'Gena Coblenz',
         visibility: 'private',
-        status: 'draft'
+        status: 'draft',
+        lastSaved: new Date().toISOString()
       },
       configuration: {
         execution: {
@@ -945,10 +1132,15 @@ async function handleSave() {
 
     // Save to store
     await pipelineStore.savePipeline()
-    message.success('Pipeline saved successfully!')
+
+    message.success({
+      content: `Pipeline saved successfully! (${nodes.value.length} nodes, ${edges.value.length} connections)`,
+      key: saveKey,
+      duration: 3
+    })
   } catch (error) {
     console.error('Error saving pipeline:', error)
-    message.error('Failed to save pipeline')
+    message.error({ content: 'Failed to save pipeline', key: saveKey })
   }
 }
 
@@ -959,12 +1151,66 @@ function handleBack() {
 
 // Propose
 function handlePropose() {
-  message.info('Propose functionality - submit pipeline for review')
+  if (nodes.value.length === 0) {
+    message.warning('Cannot propose empty pipeline. Please add at least one node.')
+    return
+  }
+
+  message.success({
+    content: 'Pipeline proposal submitted for review',
+    duration: 3
+  })
+
+  console.log('Pipeline proposed for review', {
+    nodes: nodes.value.length,
+    edges: edges.value.length,
+    timestamp: new Date().toISOString()
+  })
 }
 
 // Deploy
-function handleDeploy() {
-  message.info('Deploy functionality not implemented')
+async function handleDeploy() {
+  // Validation
+  if (nodes.value.length === 0) {
+    message.warning('Cannot deploy empty pipeline. Please add at least one node.')
+    return
+  }
+
+  // Check if there's at least one output node
+  const hasOutput = nodes.value.some(node => node.type === 'output')
+  if (!hasOutput) {
+    message.warning('Pipeline must have at least one output node before deployment.')
+    return
+  }
+
+  const deployKey = 'deploying'
+  message.loading({ content: 'Deploying pipeline...', key: deployKey, duration: 0 })
+
+  try {
+    // Simulate deployment process
+    await new Promise(resolve => setTimeout(resolve, 2000))
+
+    message.success({
+      content: `Pipeline deployed successfully! Ready for execution.`,
+      key: deployKey,
+      duration: 3
+    })
+
+    console.log('====================================')
+    console.log('Pipeline Deployed')
+    console.log('====================================')
+    console.log('Deployment Info:', {
+      pipelineName: pipelineName.value,
+      nodesCount: nodes.value.length,
+      edgesCount: edges.value.length,
+      deploymentTime: new Date().toISOString(),
+      status: 'active'
+    })
+    console.log('====================================')
+  } catch (error) {
+    console.error('Deployment error:', error)
+    message.error({ content: 'Failed to deploy pipeline', key: deployKey })
+  }
 }
 
 // More actions
@@ -1901,18 +2147,90 @@ onUnmounted(() => {
       flex-direction: column;
       height: 100%;
 
-      .columns-toolbar {
-        padding: 12px;
-        border-bottom: 1px solid #E4E7EB;
+      .empty-state {
+        flex: 1;
         display: flex;
-        gap: 8px;
         align-items: center;
-        background: #F8F9FA;
+        justify-content: center;
       }
 
-      .columns-body {
+      .columns-container {
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+      }
+
+      .columns-toolbar {
+        padding: 12px 20px;
+        border-bottom: 1px solid #E4E7EB;
+        display: flex;
+        gap: 12px;
+        align-items: center;
+        background: #F8F9FA;
+
+        .column-count {
+          margin-left: auto;
+          font-size: 12px;
+          color: #5F6368;
+        }
+      }
+
+      .columns-list {
         flex: 1;
         overflow: auto;
+        padding: 20px;
+      }
+
+      .columns-table {
+        width: 100%;
+
+        table {
+          width: 100%;
+          border-collapse: collapse;
+          background: white;
+          border-radius: 6px;
+          overflow: hidden;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+
+          thead {
+            background: #F8F9FA;
+
+            th {
+              padding: 12px 16px;
+              text-align: left;
+              font-size: 12px;
+              font-weight: 600;
+              color: #5F6368;
+              border-bottom: 1px solid #E4E7EB;
+            }
+          }
+
+          tbody {
+            .column-row {
+              border-bottom: 1px solid #E4E7EB;
+              transition: background 0.2s;
+
+              &:hover {
+                background: #F8F9FA;
+              }
+
+              &:last-child {
+                border-bottom: none;
+              }
+
+              td {
+                padding: 12px 16px;
+                font-size: 13px;
+                color: #212121;
+              }
+
+              .column-name-cell {
+                display: flex;
+                align-items: center;
+              }
+            }
+          }
+        }
       }
     }
 

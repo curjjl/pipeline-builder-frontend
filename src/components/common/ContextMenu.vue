@@ -72,7 +72,9 @@ import {
   ScissorOutlined,
   MergeCellsOutlined,
   EyeOutlined,
-  RightOutlined
+  RightOutlined,
+  FolderOpenOutlined,
+  MinusCircleOutlined
 } from '@ant-design/icons-vue'
 
 export interface MenuItem {
@@ -110,7 +112,9 @@ const getIcon = (iconName?: string) => {
     'plus-circle': PlusCircleOutlined,
     scissor: ScissorOutlined,
     'merge-cells': MergeCellsOutlined,
-    eye: EyeOutlined
+    eye: EyeOutlined,
+    'folder-open': FolderOpenOutlined,
+    'minus-circle': MinusCircleOutlined
   }
   return iconName ? iconMap[iconName] : null
 }

@@ -73,7 +73,10 @@ const initGraph = () => {
     },
     connecting: {
       router: {
-        name: 'smooth'
+        name: 'orth',
+        args: {
+          padding: 10
+        }
       },
       connector: {
         name: 'rounded',
@@ -94,17 +97,25 @@ const initGraph = () => {
           shape: 'edge',
           attrs: {
             line: {
-              stroke: '#98A2B3',
+              stroke: '#4285F4',
               strokeWidth: 2,
+              strokeDasharray: '5 5',
+              strokeLinecap: 'round',
               targetMarker: {
                 name: 'block',
-                width: 8,
-                height: 6,
-                fill: '#98A2B3'
+                width: 10,
+                height: 8,
+                fill: '#4285F4'
+              },
+              style: {
+                animation: 'dash-flow 1s linear infinite'
               }
             }
           },
-          zIndex: -1
+          zIndex: 1,
+          data: {
+            animated: true
+          }
         })
       },
       validateConnection({ sourceCell, targetCell, sourceMagnet, targetMagnet }) {
@@ -376,6 +387,9 @@ const bindEvents = () => {
   graph.on('edge:mouseenter', ({ edge }) => {
     edge.attr('line/stroke', '#2D6EED')
     edge.attr('line/strokeWidth', 3)
+    edge.attr('line/strokeDasharray', '0')
+    edge.attr('line/targetMarker/fill', '#2D6EED')
+    edge.attr('line/style/animation', 'none')
 
     // 添加边工具按钮
     if (!edge.hasTools()) {
@@ -385,7 +399,7 @@ const bindEvents = () => {
           args: {
             attrs: {
               fill: '#FFFFFF',
-              stroke: '#2D6EED',
+              stroke: '#4285F4',
               'stroke-width': 2,
               r: 5
             }
@@ -408,9 +422,16 @@ const bindEvents = () => {
   })
 
   graph.on('edge:mouseleave', ({ edge }) => {
-    if (!edge.isSelected()) {
-      edge.attr('line/stroke', '#98A2B3')
+    // 检查边是否被选中
+    const selectedCells = graph!.getSelectedCells()
+    const isSelected = selectedCells.some(cell => cell.id === edge.id)
+
+    if (!isSelected) {
+      edge.attr('line/stroke', '#4285F4')
       edge.attr('line/strokeWidth', 2)
+      edge.attr('line/strokeDasharray', '5 5')
+      edge.attr('line/targetMarker/fill', '#4285F4')
+      edge.attr('line/style/animation', 'dash-flow 1s linear infinite')
       edge.removeTools()
     }
   })
@@ -419,6 +440,9 @@ const bindEvents = () => {
   graph.on('edge:selected', ({ edge }) => {
     edge.attr('line/stroke', '#2D6EED')
     edge.attr('line/strokeWidth', 3)
+    edge.attr('line/strokeDasharray', '0')
+    edge.attr('line/targetMarker/fill', '#2D6EED')
+    edge.attr('line/style/animation', 'none')
 
     // 选中时添加工具
     if (!edge.hasTools()) {
@@ -428,7 +452,7 @@ const bindEvents = () => {
           args: {
             attrs: {
               fill: '#FFFFFF',
-              stroke: '#2D6EED',
+              stroke: '#4285F4',
               'stroke-width': 2,
               r: 5
             }
@@ -439,8 +463,11 @@ const bindEvents = () => {
   })
 
   graph.on('edge:unselected', ({ edge }) => {
-    edge.attr('line/stroke', '#98A2B3')
+    edge.attr('line/stroke', '#4285F4')
     edge.attr('line/strokeWidth', 2)
+    edge.attr('line/strokeDasharray', '5 5')
+    edge.attr('line/targetMarker/fill', '#4285F4')
+    edge.attr('line/style/animation', 'dash-flow 1s linear infinite')
     edge.removeTools()
   })
 
@@ -678,6 +705,16 @@ defineExpose({
 </script>
 
 <style scoped lang="less">
+// 数据流动画动画
+@keyframes dash-flow {
+  0% {
+    stroke-dashoffset: 0;
+  }
+  100% {
+    stroke-dashoffset: -10;
+  }
+}
+
 .graph-canvas {
   width: 100%;
   height: 100%;
@@ -690,6 +727,13 @@ defineExpose({
   :deep(.x6-node) {
     cursor: pointer;
     transition: all 0.2s ease;
+  }
+
+  :deep(.x6-edge) {
+    // 应用数据流动画
+    .x6-edge-line {
+      transition: all 0.3s ease;
+    }
   }
 
   :deep(.x6-port-body) {
