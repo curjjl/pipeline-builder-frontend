@@ -215,33 +215,43 @@ const bindEvents = () => {
   // 节点点击
   graph.on('node:click', ({ node, e }) => {
     const nodeData = node.getData() as Node
-    emit('node:click', nodeData)
+    if (nodeData) {
+      emit('node:click', nodeData)
+    }
   })
 
   // 节点双击
   graph.on('node:dblclick', ({ node }) => {
     const nodeData = node.getData() as Node
-    emit('node:dblclick', nodeData)
+    if (nodeData) {
+      emit('node:dblclick', nodeData)
+    }
   })
 
   // 节点右键
   graph.on('node:contextmenu', ({ node, e }) => {
     e.preventDefault()
     const nodeData = node.getData() as Node
-    emit('node:contextmenu', { node: nodeData, event: e as MouseEvent })
+    if (nodeData) {
+      emit('node:contextmenu', { node: nodeData, event: e as MouseEvent })
+    }
   })
 
   // 边点击
   graph.on('edge:click', ({ edge }) => {
     const edgeData = edge.getData() as Edge
-    emit('edge:click', edgeData)
+    if (edgeData) {
+      emit('edge:click', edgeData)
+    }
   })
 
   // 边右键
   graph.on('edge:contextmenu', ({ edge, e }) => {
     e.preventDefault()
     const edgeData = edge.getData() as Edge
-    emit('edge:contextmenu', { edge: edgeData, event: e as MouseEvent })
+    if (edgeData) {
+      emit('edge:contextmenu', { edge: edgeData, event: e as MouseEvent })
+    }
   })
 
   // 画布点击

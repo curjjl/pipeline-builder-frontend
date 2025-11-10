@@ -3,51 +3,84 @@
     <!-- Top navigation -->
     <div class="top-nav">
       <div class="nav-left">
-        <div class="logo">P</div>
+        <!-- Back button -->
+        <a-button type="text" class="back-btn" @click="handleBack">
+          <LeftOutlined />
+        </a-button>
+
+        <!-- Breadcrumb -->
         <div class="breadcrumb">
-          <span class="breadcrumb-item">Pipeline Builder</span>
+          <span class="breadcrumb-item">[Gena] Palantir</span>
           <RightOutlined class="separator" />
-          <span class="breadcrumb-item active">{{ pipelineName }}</span>
+          <span class="breadcrumb-item">Deep Dive: Building...</span>
+          <RightOutlined class="separator" />
+          <span class="breadcrumb-item active">Pipeline</span>
         </div>
       </div>
 
-      <div class="nav-tabs">
-        <a-button
-          :class="['tab-btn', { active: currentTab === 'graph' }]"
-          @click="currentTab = 'graph'"
-        >
-          <NodeIndexOutlined /> Graph
-        </a-button>
-        <a-button
-          :class="['tab-btn', { active: currentTab === 'proposals' }]"
-          @click="currentTab = 'proposals'"
-        >
-          <BulbOutlined /> Proposals
-        </a-button>
-        <a-button
-          :class="['tab-btn', { active: currentTab === 'history' }]"
-          @click="currentTab = 'history'"
-        >
-          <HistoryOutlined /> History
-        </a-button>
+      <div class="nav-center">
+        <div class="nav-tabs">
+          <a-button
+            :class="['tab-btn', { active: currentTab === 'graph' }]"
+            @click="currentTab = 'graph'"
+          >
+            Graph
+          </a-button>
+          <a-button
+            :class="['tab-btn', { active: currentTab === 'proposals' }]"
+            @click="currentTab = 'proposals'"
+          >
+            Proposals
+          </a-button>
+          <a-button
+            :class="['tab-btn', { active: currentTab === 'history' }]"
+            @click="currentTab = 'history'"
+          >
+            History
+          </a-button>
+        </div>
       </div>
 
       <div class="nav-actions">
-        <a-button @click="handleSave">
-          <SaveOutlined /> Save
+        <a-button class="action-btn" @click="handleUndo" :disabled="!canUndo">
+          <UndoOutlined />
         </a-button>
-        <a-button type="primary" @click="handleDeploy">
-          <RocketOutlined /> Deploy
+        <a-button class="action-btn" @click="handleRedo" :disabled="!canRedo">
+          <RedoOutlined />
+        </a-button>
+        <a-divider type="vertical" style="height: 20px; margin: 0 8px;" />
+        <a-dropdown>
+          <a-button class="action-btn">
+            Main
+            <DownOutlined style="font-size: 10px;" />
+          </a-button>
+          <template #overlay>
+            <a-menu>
+              <a-menu-item key="main">Main</a-menu-item>
+              <a-menu-item key="dev">Development</a-menu-item>
+            </a-menu>
+          </template>
+        </a-dropdown>
+        <a-divider type="vertical" style="height: 20px; margin: 0 8px;" />
+        <a-button class="action-btn" @click="handleSave">
+          <SaveOutlined />
+          Save
+        </a-button>
+        <a-button class="action-btn" @click="handlePropose">
+          Propose
+        </a-button>
+        <a-button type="primary" class="deploy-btn" @click="handleDeploy">
+          Deploy
         </a-button>
         <a-dropdown>
-          <a-button>
+          <a-button class="action-btn">
             <MoreOutlined />
           </a-button>
           <template #overlay>
             <a-menu @click="handleMoreAction">
+              <a-menu-item key="settings">Settings</a-menu-item>
               <a-menu-item key="export">Export</a-menu-item>
               <a-menu-item key="duplicate">Duplicate</a-menu-item>
-              <a-menu-item key="settings">Settings</a-menu-item>
               <a-menu-divider />
               <a-menu-item key="delete" danger>Delete</a-menu-item>
             </a-menu>
@@ -179,17 +212,17 @@
           </a-button>
         </div>
 
-        <!-- Hint bubble -->
-        <div v-if="showHint" class="hint-bubble">
+        <!-- Official hint bar (blue banner at bottom) -->
+        <div v-if="showHint" class="official-hint-bar">
           <div class="hint-content">
-            <InfoCircleOutlined />
-            <span>Click a dataset node to transform your data.</span>
+            <InfoCircleOutlined class="hint-icon" />
+            <span class="hint-text">Click a dataset node and select an action or <a class="hint-link" @click="handleAddData">add data</a> to transform your data.</span>
             <CloseOutlined class="hint-close" @click="showHint = false" />
           </div>
         </div>
       </div>
 
-      <!-- Right panel -->
+      <!-- Right panel - Enhanced -->
       <div
         class="right-panel"
         :style="{ width: rightPanelWidth + 'px' }"
@@ -199,48 +232,117 @@
           @mousedown="startResize('right')"
         ></div>
 
-        <div class="panel-header">
-          <h2>Pipeline outputs</h2>
-        </div>
-
-        <div class="panel-content">
-          <p class="panel-desc">
-            Pipeline outputs are the artifacts your pipeline builds. They can be datasets,
-            reports, or other resources that downstream processes depend on.
-          </p>
-
-          <a-empty
-            v-if="outputs.length === 0"
-            description="No outputs configured"
-          >
-            <a-button type="primary" block @click="handleAddOutput">
-              <PlusOutlined /> Add pipeline output
-            </a-button>
-          </a-empty>
-
-          <div v-else class="outputs-list">
-            <div
-              v-for="output in outputs"
-              :key="output.id"
-              class="output-item"
-            >
-              <div class="output-icon">
-                <DatabaseOutlined />
+        <!-- Right panel sections -->
+        <div class="right-panel-content">
+          <!-- Pipeline outputs section -->
+          <div class="panel-section">
+            <div class="section-header">
+              <div class="section-title">
+                <h3>Pipeline outputs</h3>
+                <a-button type="text" size="small" class="pin-btn">
+                  <PushpinOutlined />
+                </a-button>
               </div>
-              <div class="output-info">
-                <div class="output-name">{{ output.name }}</div>
-                <div class="output-type">{{ output.type }}</div>
+            </div>
+
+            <div class="section-content">
+              <p class="section-desc">
+                Pipeline outputs are the artifacts your pipeline builds. Pipeline Builder ensures all outputs are defined, healthy, and ready to deploy.
+              </p>
+
+              <div v-if="outputs.length === 0" class="outputs-empty">
+                <div class="empty-icon">
+                  <FileOutlined />
+                </div>
+                <p class="empty-text">No outputs configured</p>
+                <a-button type="primary" block @click="handleAddOutput" class="add-output-btn">
+                  <PlusOutlined /> Add pipeline output
+                </a-button>
               </div>
-              <a-button type="text" size="small" @click="removeOutput(output.id)">
-                <DeleteOutlined />
-              </a-button>
+
+              <div v-else class="outputs-list">
+                <div
+                  v-for="output in outputs"
+                  :key="output.id"
+                  class="output-item"
+                >
+                  <div class="output-icon">
+                    <DatabaseOutlined />
+                  </div>
+                  <div class="output-info">
+                    <div class="output-name">{{ output.name }}</div>
+                    <div class="output-type">{{ output.type }}</div>
+                  </div>
+                  <a-button type="text" size="small" @click="removeOutput(output.id)">
+                    <DeleteOutlined />
+                  </a-button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Legend section -->
+          <div class="panel-section">
+            <div class="section-header collapsible" @click="legendExpanded = !legendExpanded">
+              <div class="section-title">
+                <h3>Legend</h3>
+                <DownOutlined :class="['expand-icon', { expanded: legendExpanded }]" />
+              </div>
+            </div>
+
+            <div v-show="legendExpanded" class="section-content">
+              <div class="legend-list">
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #4285F4;"></div>
+                  <span class="legend-label">Dataset node</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #34A853;"></div>
+                  <span class="legend-label">Transform node</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #FBBC04;"></div>
+                  <span class="legend-label">Join node</span>
+                </div>
+                <div class="legend-item">
+                  <div class="legend-color" style="background: #EA4335;"></div>
+                  <span class="legend-label">Output node</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Settings section -->
+          <div class="panel-section">
+            <div class="section-header collapsible" @click="settingsExpanded = !settingsExpanded">
+              <div class="section-title">
+                <h3>Canvas settings</h3>
+                <DownOutlined :class="['expand-icon', { expanded: settingsExpanded }]" />
+              </div>
+            </div>
+
+            <div v-show="settingsExpanded" class="section-content">
+              <div class="settings-list">
+                <div class="setting-item">
+                  <span class="setting-label">Show grid</span>
+                  <a-switch v-model:checked="showGrid" size="small" />
+                </div>
+                <div class="setting-item">
+                  <span class="setting-label">Snap to grid</span>
+                  <a-switch v-model:checked="snapToGrid" size="small" />
+                </div>
+                <div class="setting-item">
+                  <span class="setting-label">Auto layout</span>
+                  <a-switch v-model:checked="autoLayout" size="small" />
+                </div>
+              </div>
             </div>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Bottom panel -->
+    <!-- Bottom panel - Palantir Official Style -->
     <div
       v-if="bottomPanelVisible"
       class="bottom-panel"
@@ -251,57 +353,131 @@
         @mousedown="startResize('bottom')"
       ></div>
 
+      <!-- Main header with primary tabs -->
       <div class="panel-header">
-        <a-tabs v-model:activeKey="bottomTab" @change="handleBottomTabChange">
-          <a-tab-pane key="input" tab="Input table">
-            <template #tab>
-              <span><TableOutlined /> Input table</span>
-            </template>
-          </a-tab-pane>
+        <div class="panel-header-left">
+          <!-- Primary tabs (like official) -->
+          <a-button
+            :class="['primary-tab-btn', { active: bottomTab === 'selection-preview' }]"
+            @click="bottomTab = 'selection-preview'"
+            :disabled="!selectedNode"
+          >
+            <EyeOutlined /> Selection preview
+          </a-button>
+          <a-button
+            :class="['primary-tab-btn-icon', { active: bottomTab === 'preview' }]"
+            @click="bottomTab = 'preview'"
+            title="Preview"
+          >
+            <TableOutlined />
+          </a-button>
+          <a-button
+            :class="['primary-tab-btn-icon', { active: bottomTab === 'suggestions' }]"
+            @click="bottomTab = 'suggestions'"
+            title="Suggestions"
+          >
+            <BulbOutlined />
+          </a-button>
+        </div>
 
-          <a-tab-pane key="output" tab="Output table">
-            <template #tab>
-              <span><ExportOutlined /> Output table</span>
-            </template>
-          </a-tab-pane>
-
-          <a-tab-pane key="preview" tab="Selection preview" :disabled="!selectedNode">
-            <template #tab>
-              <span><EyeOutlined /> Selection preview</span>
-            </template>
-          </a-tab-pane>
-
-          <a-tab-pane key="transformations" tab="Transformations" :disabled="!selectedNode">
-            <template #tab>
-              <span><FunctionOutlined /> Transformations</span>
-            </template>
-          </a-tab-pane>
-
-          <a-tab-pane key="suggestions" tab="Suggestions">
-            <template #tab>
-              <span><BulbOutlined /> Suggestions</span>
-            </template>
-          </a-tab-pane>
-        </a-tabs>
-
-        <a-button type="text" size="small" @click="bottomPanelVisible = false">
-          <CloseOutlined />
-        </a-button>
+        <div class="panel-header-right">
+          <a-button type="text" size="small" class="expand-btn">
+            <span style="font-size: 12px;">Expand all</span>
+          </a-button>
+          <a-button type="text" size="small" @click="bottomPanelVisible = false" class="close-btn">
+            <CloseOutlined />
+          </a-button>
+        </div>
       </div>
 
+      <!-- Secondary tabs (Sub tabs) -->
+      <div class="panel-sub-header" v-if="bottomTab === 'selection-preview'">
+        <a-tabs v-model:activeKey="subTab" size="small" class="sub-tabs">
+          <a-tab-pane key="about" tab="About" />
+          <a-tab-pane key="columns" tab="Columns" />
+          <a-tab-pane key="schedules" tab="Schedules" />
+        </a-tabs>
+      </div>
+
+      <!-- Panel body content -->
       <div class="panel-body">
-        <!-- Input table -->
-        <div v-show="bottomTab === 'input'" class="tab-content">
-          <DataPreviewPanel mode="input" />
+        <!-- Selection preview content -->
+        <div v-show="bottomTab === 'selection-preview'" class="tab-content">
+          <!-- About Tab -->
+          <div v-show="subTab === 'about'" class="about-content">
+            <div class="about-section">
+              <label class="about-label">Enter description...</label>
+              <a-textarea
+                v-model:value="nodeDescription"
+                :rows="3"
+                placeholder="Add a description for this node..."
+                class="about-textarea"
+              />
+            </div>
+            <div class="about-meta">
+              <div class="meta-row">
+                <span class="meta-label">Updated</span>
+                <span class="meta-value">{{ selectedNode ? 'a few seconds ago' : '-' }} by Gena Coblenz</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Created</span>
+                <span class="meta-value">{{ selectedNode ? '2 minutes ago' : '-' }} by Gena Coblenz</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Location</span>
+                <span class="meta-value">/Ontologize Public-34fdb/[Gena] Palantir...</span>
+              </div>
+              <div class="meta-row">
+                <span class="meta-label">Type</span>
+                <span class="meta-value">Raw dataset</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Columns Tab -->
+          <div v-show="subTab === 'columns'" class="columns-content">
+            <div class="columns-toolbar">
+              <a-input-search
+                placeholder="Search columns..."
+                style="width: 300px;"
+                size="small"
+              />
+              <a-button size="small">Clear</a-button>
+              <a-button size="small" type="primary">Generate</a-button>
+            </div>
+            <div class="columns-body">
+              <DataPreviewPanel
+                v-if="selectedNode"
+                :node="selectedNode"
+                mode="preview"
+              />
+            </div>
+          </div>
+
+          <!-- Schedules Tab -->
+          <div v-show="subTab === 'schedules'" class="schedules-content">
+            <a-empty description="No schedules configured">
+              <p style="color: #5F6368; font-size: 13px;">
+                Configure schedules to run this node automatically.
+              </p>
+            </a-empty>
+          </div>
         </div>
 
-        <!-- Output table -->
-        <div v-show="bottomTab === 'output'" class="tab-content">
-          <DataPreviewPanel mode="output" />
-        </div>
-
-        <!-- Selection preview -->
+        <!-- Preview Tab (full data preview) -->
         <div v-show="bottomTab === 'preview'" class="tab-content">
+          <div class="preview-header">
+            <div class="preview-title">
+              <DatabaseOutlined style="margin-right: 8px;" />
+              <span>{{ selectedNode?.name || 'Data Preview' }}</span>
+              <span class="preview-stats">Showing 50 rows · 5 columns</span>
+            </div>
+            <a-input-search
+              placeholder="Search columns..."
+              style="width: 250px;"
+              size="small"
+            />
+          </div>
           <DataPreviewPanel
             v-if="selectedNode"
             :node="selectedNode"
@@ -309,18 +485,7 @@
           />
         </div>
 
-        <!-- Transformations -->
-        <div v-show="bottomTab === 'transformations'" class="tab-content">
-          <TransformPanel
-            v-if="selectedNode"
-            :node="selectedNode"
-            :columns="selectedNodeColumns"
-            @apply="handleApplyTransform"
-            @cancel="handleCancelTransform"
-          />
-        </div>
-
-        <!-- Suggestions -->
+        <!-- Suggestions Tab -->
         <div v-show="bottomTab === 'suggestions'" class="tab-content">
           <div class="suggestions-content">
             <a-empty description="No suggestions available">
@@ -369,6 +534,7 @@ import {
   EyeOutlined,
   FunctionOutlined,
   RightOutlined,
+  LeftOutlined,
   DragOutlined,
   SelectOutlined,
   DownloadOutlined,
@@ -376,7 +542,9 @@ import {
   FilterOutlined,
   MergeCellsOutlined,
   UndoOutlined,
-  RedoOutlined
+  RedoOutlined,
+  PushpinOutlined,
+  FileOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -389,17 +557,24 @@ import ToolButton from '@/components/common/ToolButton.vue'
 import ContextMenu from '@/components/common/ContextMenu.vue'
 import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
+import { useRouter } from 'vue-router'
 
 const route = useRoute()
+const router = useRouter()
 const pipelineStore = usePipelineStore()
 
 // Basic state
 const pipelineName = ref('My Pipeline')
 const currentTab = ref('graph')
 const currentTool = ref('select')
+
 const canvasRef = ref()
 const zoomLevel = ref(100)
 const showHint = ref(true)
+
+// Bottom panel state
+const subTab = ref('about')
+const nodeDescription = ref('')
 
 // Nodes and edges
 const nodes = computed(() => pipelineStore.nodes)
@@ -429,12 +604,17 @@ const selectedNodeColumns = computed(() => {
 const outputs = ref<any[]>([])
 
 // Right panel
-const rightPanelWidth = ref(280)
+const rightPanelWidth = ref(320)
+const legendExpanded = ref(false)
+const settingsExpanded = ref(false)
+const showGrid = ref(false)
+const snapToGrid = ref(true)
+const autoLayout = ref(false)
 
 // Bottom panel
 const bottomPanelVisible = ref(true)
 const bottomPanelHeight = ref(350)
-const bottomTab = ref('input')
+const bottomTab = ref('selection-preview')
 
 // Context menu
 const contextMenuVisible = ref(false)
@@ -772,6 +952,16 @@ async function handleSave() {
   }
 }
 
+// Back to list
+function handleBack() {
+  router.push('/pipelines')
+}
+
+// Propose
+function handlePropose() {
+  message.info('Propose functionality - submit pipeline for review')
+}
+
 // Deploy
 function handleDeploy() {
   message.info('Deploy functionality not implemented')
@@ -935,35 +1125,39 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 0 16px;
+  padding: 0 12px;
   flex-shrink: 0;
 
   .nav-left {
     display: flex;
     align-items: center;
-    gap: 16px;
+    gap: 12px;
+    flex: 0 0 auto;
 
-    .logo {
-      width: 32px;
+    .back-btn {
       height: 32px;
-      background: linear-gradient(135deg, #2D6EED 0%, #1E4FC2 100%);
-      border-radius: 6px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 18px;
-      font-weight: 700;
-      color: #FFFFFF;
+      width: 32px;
+      padding: 0;
+      color: #5F6368;
+
+      &:hover {
+        background: #F5F6F7;
+        color: #212121;
+      }
     }
 
     .breadcrumb {
       display: flex;
       align-items: center;
-      gap: 8px;
-      font-size: 14px;
+      gap: 6px;
+      font-size: 13px;
 
       .breadcrumb-item {
         color: #5F6368;
+        white-space: nowrap;
+        max-width: 200px;
+        overflow: hidden;
+        text-overflow: ellipsis;
 
         &.active {
           color: #212121;
@@ -972,42 +1166,88 @@ onUnmounted(() => {
       }
 
       .separator {
-        font-size: 12px;
+        font-size: 10px;
         color: #D0D5DD;
       }
     }
   }
 
-  .nav-tabs {
+  .nav-center {
+    flex: 1;
     display: flex;
-    gap: 4px;
+    justify-content: center;
 
-    .tab-btn {
-      height: 32px;
-      padding: 0 16px;
-      border: none;
-      background: transparent;
-      color: #5F6368;
-      font-size: 13px;
+    .nav-tabs {
+      display: flex;
+      gap: 2px;
+      background: #F1F3F4;
+      padding: 2px;
       border-radius: 6px;
-      transition: all 0.2s;
 
-      &:hover {
-        background: #F5F6F7;
-        color: #212121;
-      }
+      .tab-btn {
+        height: 28px;
+        padding: 0 20px;
+        border: none;
+        background: transparent;
+        color: #5F6368;
+        font-size: 13px;
+        font-weight: 400;
+        border-radius: 4px;
+        transition: all 0.15s;
 
-      &.active {
-        background: #E8F0FE;
-        color: #2D6EED;
-        font-weight: 500;
+        &:hover {
+          background: rgba(255, 255, 255, 0.5);
+          color: #212121;
+        }
+
+        &.active {
+          background: #FFFFFF;
+          color: #212121;
+          font-weight: 500;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        }
       }
     }
   }
 
   .nav-actions {
     display: flex;
+    align-items: center;
     gap: 8px;
+    flex: 0 0 auto;
+
+    .action-btn {
+      height: 32px;
+      padding: 0 12px;
+      border: 1px solid #D0D5DD;
+      background: #FFFFFF;
+      color: #202124;
+      font-size: 13px;
+      border-radius: 4px;
+      transition: all 0.2s;
+
+      &:hover:not(:disabled) {
+        border-color: #98A2B3;
+        background: #F8F9FA;
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+      }
+
+      &.deploy-btn {
+        background: #4285F4;
+        color: #FFFFFF;
+        border-color: #4285F4;
+        font-weight: 500;
+
+        &:hover {
+          background: #3367D6;
+          border-color: #3367D6;
+        }
+      }
+    }
   }
 }
 
@@ -1160,54 +1400,78 @@ onUnmounted(() => {
   }
 }
 
-.hint-bubble {
+// Official hint bar (Palantir style blue banner)
+.official-hint-bar {
   position: absolute;
   bottom: 80px;
   left: 50%;
   transform: translateX(-50%);
-  max-width: 400px;
+  min-width: 600px;
+  max-width: 800px;
+  z-index: 100;
+  animation: slideUp 0.3s ease-out;
 
   .hint-content {
-    background: #2D6EED;
+    background: #4285F4;
     color: #FFFFFF;
-    padding: 12px 16px;
-    border-radius: 6px;
+    padding: 14px 20px;
+    border-radius: 8px;
     display: flex;
     align-items: center;
     gap: 12px;
-    font-size: 13px;
-    box-shadow: 0 4px 12px rgba(45, 110, 237, 0.3);
-    position: relative;
+    font-size: 14px;
+    box-shadow: 0 4px 16px rgba(66, 133, 244, 0.4);
 
-    &::after {
-      content: '';
-      position: absolute;
-      bottom: -8px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 0;
-      height: 0;
-      border-left: 8px solid transparent;
-      border-right: 8px solid transparent;
-      border-top: 8px solid #2D6EED;
+    .hint-icon {
+      font-size: 16px;
+      flex-shrink: 0;
+    }
+
+    .hint-text {
+      flex: 1;
+      line-height: 1.5;
+
+      .hint-link {
+        color: #FFFFFF;
+        text-decoration: underline;
+        font-weight: 500;
+        cursor: pointer;
+        transition: opacity 0.2s;
+
+        &:hover {
+          opacity: 0.8;
+        }
+      }
     }
 
     .hint-close {
-      margin-left: auto;
+      flex-shrink: 0;
       cursor: pointer;
-      opacity: 0.8;
-      transition: opacity 0.2s;
+      padding: 4px;
+      border-radius: 4px;
+      transition: background-color 0.2s;
 
       &:hover {
-        opacity: 1;
+        background-color: rgba(255, 255, 255, 0.2);
       }
     }
   }
 }
 
-// ==================== Right Panel ====================
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+// ==================== Right Panel - Enhanced ====================
 .right-panel {
-  width: 280px;
+  width: 320px;
   background: #FFFFFF;
   border-left: 1px solid #E4E7EB;
   display: flex;
@@ -1225,32 +1489,105 @@ onUnmounted(() => {
     z-index: 10;
 
     &:hover {
-      background: #2D6EED;
+      background: #4285F4;
     }
   }
 
-  .panel-header {
-    padding: 20px;
+  .right-panel-content {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  // Panel section
+  .panel-section {
     border-bottom: 1px solid #E4E7EB;
 
-    h2 {
-      font-size: 16px;
-      font-weight: 600;
-      color: #212121;
-      margin: 0;
+    .section-header {
+      padding: 16px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #FFFFFF;
+
+      &.collapsible {
+        cursor: pointer;
+        transition: background-color 0.2s;
+
+        &:hover {
+          background: #F8F9FA;
+        }
+      }
+
+      .section-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        width: 100%;
+
+        h3 {
+          font-size: 14px;
+          font-weight: 600;
+          color: #212121;
+          margin: 0;
+        }
+
+        .pin-btn {
+          padding: 4px;
+          color: #5F6368;
+
+          &:hover {
+            color: #212121;
+            background: #F5F6F7;
+          }
+        }
+
+        .expand-icon {
+          font-size: 10px;
+          color: #5F6368;
+          transition: transform 0.2s;
+
+          &.expanded {
+            transform: rotate(180deg);
+          }
+        }
+      }
+    }
+
+    .section-content {
+      padding: 0 20px 20px;
+
+      .section-desc {
+        font-size: 13px;
+        color: #5F6368;
+        line-height: 1.6;
+        margin-bottom: 16px;
+      }
     }
   }
 
-  .panel-content {
-    flex: 1;
-    padding: 20px;
-    overflow-y: auto;
+  // Pipeline outputs
+  .outputs-empty {
+    text-align: center;
+    padding: 20px 0;
 
-    .panel-desc {
+    .empty-icon {
+      font-size: 48px;
+      color: #D0D5DD;
+      margin-bottom: 12px;
+    }
+
+    .empty-text {
       font-size: 13px;
       color: #5F6368;
-      line-height: 1.6;
-      margin-bottom: 20px;
+      margin-bottom: 16px;
+    }
+
+    .add-output-btn {
+      border-radius: 4px;
+      font-size: 13px;
+      height: 36px;
     }
   }
 
@@ -1270,14 +1607,14 @@ onUnmounted(() => {
       transition: all 0.2s;
 
       &:hover {
-        border-color: #2D6EED;
+        border-color: #4285F4;
         background: #E8F0FE;
       }
 
       .output-icon {
         width: 32px;
         height: 32px;
-        background: #2D6EED;
+        background: #4285F4;
         border-radius: 6px;
         display: flex;
         align-items: center;
@@ -1302,9 +1639,52 @@ onUnmounted(() => {
       }
     }
   }
+
+  // Legend
+  .legend-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 3px;
+        flex-shrink: 0;
+      }
+
+      .legend-label {
+        font-size: 13px;
+        color: #212121;
+      }
+    }
+  }
+
+  // Settings
+  .settings-list {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+
+    .setting-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+
+      .setting-label {
+        font-size: 13px;
+        color: #212121;
+      }
+    }
+  }
 }
 
-// ==================== Bottom Panel ====================
+// ==================== Bottom Panel - Palantir Official Style ====================
 .bottom-panel {
   height: 350px;
   background: #FFFFFF;
@@ -1324,55 +1704,251 @@ onUnmounted(() => {
     z-index: 10;
 
     &:hover {
-      background: #2D6EED;
+      background: #4285F4;
     }
   }
 
+  // Main header with primary tabs
   .panel-header {
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: 8px 12px;
     border-bottom: 1px solid #E4E7EB;
-    padding-right: 12px;
+    background: #FFFFFF;
 
-    :deep(.ant-tabs) {
-      flex: 1;
+    .panel-header-left {
+      display: flex;
+      gap: 4px;
 
+      .primary-tab-btn {
+        height: 32px;
+        padding: 0 16px;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #5F6368;
+        font-size: 13px;
+        border-radius: 4px;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+          background: #F5F6F7;
+          color: #212121;
+        }
+
+        &.active {
+          background: #4285F4;
+          color: #FFFFFF;
+          font-weight: 500;
+          border-color: #4285F4;
+        }
+
+        &:disabled {
+          opacity: 0.4;
+          cursor: not-allowed;
+        }
+      }
+
+      .primary-tab-btn-icon {
+        height: 32px;
+        width: 32px;
+        min-width: 32px;
+        padding: 0;
+        border: 1px solid transparent;
+        background: transparent;
+        color: #5F6368;
+        font-size: 16px;
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: all 0.2s;
+
+        &:hover:not(:disabled) {
+          background: #F5F6F7;
+          color: #212121;
+        }
+
+        &.active {
+          background: #E8F0FE;
+          color: #4285F4;
+          border-color: #4285F4;
+        }
+      }
+    }
+
+    .panel-header-right {
+      display: flex;
+      gap: 4px;
+
+      .expand-btn,
+      .close-btn {
+        height: 32px;
+        padding: 0 12px;
+        color: #5F6368;
+
+        &:hover {
+          color: #212121;
+          background: #F5F6F7;
+        }
+      }
+
+      .close-btn {
+        padding: 0;
+        width: 32px;
+      }
+    }
+  }
+
+  // Sub header with secondary tabs
+  .panel-sub-header {
+    border-bottom: 1px solid #E4E7EB;
+    background: #F8F9FA;
+
+    :deep(.sub-tabs) {
       .ant-tabs-nav {
         margin: 0;
+        padding: 0 12px;
+
+        &::before {
+          border: none;
+        }
 
         .ant-tabs-tab {
-          padding: 12px 20px;
+          padding: 10px 16px;
           font-size: 13px;
+          color: #5F6368;
+          background: transparent;
+          border: none;
+          margin: 0 4px 0 0;
 
           &:hover {
-            color: #2D6EED;
+            color: #212121;
           }
 
           &.ant-tabs-tab-active {
             .ant-tabs-tab-btn {
-              color: #2D6EED;
+              color: #212121;
               font-weight: 500;
             }
           }
         }
 
         .ant-tabs-ink-bar {
-          background: #2D6EED;
+          background: #4285F4;
+          height: 2px;
         }
       }
     }
   }
 
+  // Panel body content
   .panel-body {
     flex: 1;
     overflow: hidden;
+    background: #FFFFFF;
 
     .tab-content {
       height: 100%;
       overflow-y: auto;
     }
 
+    // About Tab content
+    .about-content {
+      padding: 20px;
+
+      .about-section {
+        margin-bottom: 24px;
+
+        .about-label {
+          display: block;
+          font-size: 12px;
+          color: #5F6368;
+          margin-bottom: 8px;
+        }
+
+        .about-textarea {
+          font-size: 13px;
+        }
+      }
+
+      .about-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+
+        .meta-row {
+          display: flex;
+          align-items: center;
+          font-size: 13px;
+
+          .meta-label {
+            min-width: 100px;
+            color: #5F6368;
+            font-weight: 500;
+          }
+
+          .meta-value {
+            color: #212121;
+          }
+        }
+      }
+    }
+
+    // Columns Tab content
+    .columns-content {
+      display: flex;
+      flex-direction: column;
+      height: 100%;
+
+      .columns-toolbar {
+        padding: 12px;
+        border-bottom: 1px solid #E4E7EB;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: #F8F9FA;
+      }
+
+      .columns-body {
+        flex: 1;
+        overflow: auto;
+      }
+    }
+
+    // Schedules Tab content
+    .schedules-content {
+      padding: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    // Preview Tab content
+    .preview-header {
+      padding: 12px 16px;
+      border-bottom: 1px solid #E4E7EB;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #F8F9FA;
+
+      .preview-title {
+        display: flex;
+        align-items: center;
+        font-size: 13px;
+        font-weight: 500;
+        color: #212121;
+
+        .preview-stats {
+          margin-left: 12px;
+          color: #5F6368;
+          font-weight: 400;
+        }
+      }
+    }
+
+    // Suggestions Tab content
     .suggestions-content {
       padding: 40px;
       display: flex;

@@ -17,15 +17,6 @@ const routes: RouteRecordRaw[] = [
         }
       },
       {
-        path: 'pipelines/:id/edit',
-        name: 'PipelineEditor',
-        component: () => import('@/views/pipeline/PipelineEditor.vue'),
-        props: true,
-        meta: {
-          title: '编辑管道'
-        }
-      },
-      {
         path: 'executions',
         name: 'ExecutionList',
         component: () => import('@/views/execution/ExecutionList.vue'),
@@ -34,6 +25,17 @@ const routes: RouteRecordRaw[] = [
         }
       }
     ]
+  },
+  // PipelineEditor uses full-screen layout without DefaultLayout
+  {
+    path: '/pipelines/:id/edit',
+    name: 'PipelineEditor',
+    component: () => import('@/views/pipeline/PipelineEditor.vue'),
+    props: true,
+    meta: {
+      title: '编辑管道',
+      fullscreen: true
+    }
   },
   {
     path: '/:pathMatch(.*)*',
