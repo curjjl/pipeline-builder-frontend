@@ -8,10 +8,13 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AButton: typeof import('ant-design-vue/es')['Button']
+    ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
+    ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
     AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     ADivider: typeof import('ant-design-vue/es')['Divider']
     ADropdown: typeof import('ant-design-vue/es')['Dropdown']
     AEmpty: typeof import('ant-design-vue/es')['Empty']
+    AInput: typeof import('ant-design-vue/es')['Input']
     AInputSearch: typeof import('ant-design-vue/es')['InputSearch']
     ALayout: typeof import('ant-design-vue/es')['Layout']
     ALayoutContent: typeof import('ant-design-vue/es')['LayoutContent']
@@ -45,6 +48,7 @@ declare module 'vue' {
     RouterView: typeof import('vue-router')['RouterView']
     SortTransform: typeof import('./../components/pipeline/transforms/SortTransform.vue')['default']
     ToolButton: typeof import('./../components/common/ToolButton.vue')['default']
+    TransformConfigPanel: typeof import('./../components/pipeline/TransformConfigPanel.vue')['default']
     TransformPanel: typeof import('./../components/pipeline/TransformPanel.vue')['default']
   }
 }

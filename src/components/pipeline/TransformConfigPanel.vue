@@ -387,6 +387,19 @@ const emit = defineEmits<{
   apply: [config: any]
 }>()
 
+// Debug: Log props changes
+console.log('=== TransformConfigPanel Mounted ===')
+console.log('Node:', props.node)
+console.log('Columns:', props.columns)
+
+watch(() => props.node, (newVal) => {
+  console.log('Node prop changed:', newVal)
+})
+
+watch(() => props.columns, (newVal) => {
+  console.log('Columns prop changed:', newVal)
+})
+
 // Transform configuration
 const transformConfig = ref({
   type: 'filter' as string

@@ -150,13 +150,13 @@
 
       <div class="toolbar-section">
         <span class="toolbar-label">Transform</span>
-        <a-button class="toolbar-icon-btn" @click="showTransformPanel" :disabled="!selectedNode">
+        <a-button class="toolbar-icon-btn" @click="handleAddTransformNode" title="Add Transform Node">
           <FilterOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleAddJoin">
+        <a-button class="toolbar-icon-btn" @click="handleAddJoin" title="Add Join Node">
           <MergeCellsOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleAddOutputNode">
+        <a-button class="toolbar-icon-btn" @click="handleAddOutputNode" title="Add Output Node">
           <ExportOutlined />
         </a-button>
       </div>
@@ -593,7 +593,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import {
@@ -703,8 +703,8 @@ const filteredColumns = computed(() => {
 const outputs = ref<any[]>([])
 
 // Right panel
-const rightPanelWidth = ref(400)
-const rightPanelVisible = ref(true)
+const rightPanelWidth = ref(420)
+const rightPanelVisible = ref(true) // Always visible
 const legendExpanded = ref(false)
 const settingsExpanded = ref(false)
 const showGrid = ref(false)
@@ -712,6 +712,15 @@ const showGrid = ref(false)
 // Transform config panel
 const showTransformConfig = ref(false)
 const selectedTransformNode = ref<Node | null>(null)
+
+// Debug: Watch transform config state
+watch(showTransformConfig, (newVal) => {
+  console.log('showTransformConfig changed:', newVal)
+})
+
+watch(selectedTransformNode, (newVal) => {
+  console.log('selectedTransformNode changed:', newVal?.name)
+})
 const snapToGrid = ref(true)
 const autoLayout = ref(false)
 
@@ -756,6 +765,31 @@ function handleAddData({ key }: { key: string }) {
 
   pipelineStore.addNode(node)
   message.success(`Added dataset: ${dataset.displayName} (${dataset.rowCount} rows, ${dataset.columns.length} columns)`)
+}
+
+// Add transform node
+function handleAddTransformNode() {
+  const node: Node = {
+    id: `node-${nodeIdCounter++}`,
+    type: 'transform',
+    name: 'Transform',
+    x: 200 + Math.random() * 100,
+    y: 200 + Math.random() * 100,
+    data: {
+      transformCount: 0,
+      transformConfig: null
+    }
+  }
+
+  pipelineStore.addNode(node)
+  message.success('Added Transform node - Double click to configure')
+
+  // Auto-open config panel after adding
+  setTimeout(() => {
+    selectedTransformNode.value = node
+    showTransformConfig.value = true
+    rightPanelVisible.value = true
+  }, 100)
 }
 
 // Add join node
@@ -818,13 +852,29 @@ function handleNodeClick(node: Node) {
 
 // Node double click
 function handleNodeDoubleClick(node: Node) {
+  console.log('=== Node Double Click ===')
+  console.log('Node:', node)
+  console.log('Node Type:', node.type)
+
   pipelineStore.setSelectedNodes([node.id])
 
   // If it's a transform node, show transform config panel
   if (node.type === 'transform') {
+    console.log('Opening Transform Config Panel')
     selectedTransformNode.value = node
     showTransformConfig.value = true
     rightPanelVisible.value = true
+
+    // Get columns for debugging
+    const columns = getNodeColumns(node)
+    console.log('Detected columns:', columns)
+
+    message.info('Transform config panel opened')
+  } else if (node.type === 'dataset') {
+    // For dataset nodes, show data preview
+    bottomPanelVisible.value = true
+    bottomTab.value = 'selection-preview'
+    message.info('Dataset selected - view in bottom panel')
   } else {
     bottomPanelVisible.value = true
     bottomTab.value = 'transformations'
