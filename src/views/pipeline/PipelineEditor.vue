@@ -198,17 +198,21 @@
           @canvas:click="handleCanvasClick"
         />
 
-        <!-- Zoom controls -->
+        <!-- Zoom and Layout controls -->
         <div class="zoom-controls">
-          <a-button size="small" @click="handleZoom('in')">
+          <a-button size="small" @click="handleZoom('in')" title="Zoom in">
             <PlusOutlined />
           </a-button>
           <span class="zoom-level">{{ zoomLevel }}%</span>
-          <a-button size="small" @click="handleZoom('out')">
+          <a-button size="small" @click="handleZoom('out')" title="Zoom out">
             <MinusOutlined />
           </a-button>
-          <a-button size="small" @click="handleZoom('fit')">
+          <a-button size="small" @click="handleZoom('fit')" title="Fit to screen">
             <CompressOutlined />
+          </a-button>
+          <a-divider type="vertical" style="height: 20px; margin: 0 8px;" />
+          <a-button size="small" @click="handleAutoLayout" title="Auto layout">
+            <NodeIndexOutlined />
           </a-button>
         </div>
 
@@ -429,9 +433,13 @@
                   <span class="meta-label">Type</span>
                   <span class="meta-value">{{ getNodeTypeLabel(selectedNode.type) }}</span>
                 </div>
+                <div class="meta-row" v-if="selectedNode.type === 'dataset' && selectedNode.data?.rowCount">
+                  <span class="meta-label">Row Count</span>
+                  <span class="meta-value" style="font-weight: 600; color: #2D6EED;">{{ selectedNode.data.rowCount.toLocaleString() }} rows</span>
+                </div>
                 <div class="meta-row" v-if="selectedNode.type === 'dataset' && selectedNode.data?.columnCount">
                   <span class="meta-label">Columns</span>
-                  <span class="meta-value">{{ selectedNode.data.columnCount }} columns</span>
+                  <span class="meta-value" style="font-weight: 600; color: #2D6EED;">{{ selectedNode.data.columnCount }} columns</span>
                 </div>
                 <div class="meta-row">
                   <span class="meta-label">Updated</span>
@@ -471,10 +479,12 @@
                   <table>
                     <thead>
                       <tr>
-                        <th style="width: 50px;"></th>
-                        <th>Column Name</th>
-                        <th>Type</th>
-                        <th>Sample Values</th>
+                        <th style="width: 40px;"></th>
+                        <th style="width: 200px;">Column Name</th>
+                        <th style="width: 100px;">Type</th>
+                        <th style="width: 80px;">Nullable</th>
+                        <th style="min-width: 250px;">Sample Values</th>
+                        <th>Description</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -483,18 +493,26 @@
                         :key="col.name"
                         class="column-row"
                       >
-                        <td style="text-align: center; color: #98A2B3;">{{ index + 1 }}</td>
+                        <td style="text-align: center; color: #98A2B3; font-size: 12px;">{{ index + 1 }}</td>
                         <td class="column-name-cell">
-                          <component :is="getColumnIconComponent(col.type)" style="margin-right: 8px; color: #4285F4;" />
-                          <span style="font-weight: 500;">{{ col.name }}</span>
+                          <component :is="getColumnIconComponent(col.type)" style="margin-right: 8px; color: #4285F4; font-size: 14px;" />
+                          <span style="font-weight: 500; color: #101828;">{{ col.name }}</span>
                         </td>
                         <td>
                           <a-tag :color="getColumnTypeColor(col.type)" size="small">
                             {{ col.type }}
                           </a-tag>
                         </td>
-                        <td style="color: #5F6368;">
+                        <td style="text-align: center;">
+                          <a-tag :color="col.nullable ? 'orange' : 'green'" size="small">
+                            {{ col.nullable ? 'Yes' : 'No' }}
+                          </a-tag>
+                        </td>
+                        <td style="color: #5F6368; font-size: 12px; font-family: 'Courier New', monospace;">
                           {{ getColumnSampleValues(col) }}
+                        </td>
+                        <td style="color: #667085; font-size: 12px; font-style: italic;">
+                          {{ col.description || 'No description' }}
                         </td>
                       </tr>
                     </tbody>
@@ -550,7 +568,7 @@
 
     <!-- Context menu -->
     <ContextMenu
-      v-if="contextMenuVisible"
+      :visible="contextMenuVisible"
       :x="contextMenuX"
       :y="contextMenuY"
       :items="contextMenuItems"
@@ -594,11 +612,15 @@ import {
   UndoOutlined,
   RedoOutlined,
   PushpinOutlined,
-  FileOutlined
+  FileOutlined,
+  FontSizeOutlined,
+  NumberOutlined,
+  CalendarOutlined,
+  CheckCircleOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { getAllDatasets, getDatasetMeta } from '@/mock/datasets'
+import { getAllDatasets, getDatasetMeta, getDatasetData } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
@@ -707,12 +729,13 @@ function handleAddData({ key }: { key: string }) {
     y: 100 + Math.random() * 100,
     data: {
       datasetId: dataset.id,
-      columnCount: dataset.columns.length
+      columnCount: dataset.columns.length,
+      rowCount: dataset.rowCount
     }
   }
 
   pipelineStore.addNode(node)
-  message.success(`Added dataset: ${dataset.displayName}`)
+  message.success(`Added dataset: ${dataset.displayName} (${dataset.rowCount} rows, ${dataset.columns.length} columns)`)
 }
 
 // Add join node
@@ -725,7 +748,7 @@ function handleAddJoin() {
     y: 200 + Math.random() * 100,
     data: {
       joinConfig: {
-        type: 'inner',
+        type: 'Inner',
         leftKey: '',
         rightKey: ''
       }
@@ -982,42 +1005,56 @@ function getNodeTypeLabel(type: string): string {
 // Get column icon component based on type
 function getColumnIconComponent(type: string) {
   const iconMap: Record<string, any> = {
-    'string': DatabaseOutlined,
-    'number': DatabaseOutlined,
-    'integer': DatabaseOutlined,
-    'boolean': DatabaseOutlined,
-    'date': DatabaseOutlined,
-    'datetime': DatabaseOutlined
+    'String': FontSizeOutlined,
+    'Number': NumberOutlined,
+    'Integer': NumberOutlined,
+    'Boolean': CheckCircleOutlined,
+    'Date': CalendarOutlined,
+    'DateTime': CalendarOutlined
   }
-  return iconMap[type.toLowerCase()] || DatabaseOutlined
+  return iconMap[type] || DatabaseOutlined
 }
 
 // Get column type color
 function getColumnTypeColor(type: string): string {
   const colorMap: Record<string, string> = {
-    'string': 'blue',
-    'number': 'green',
-    'integer': 'green',
-    'boolean': 'purple',
-    'date': 'orange',
-    'datetime': 'orange'
+    'String': 'blue',
+    'Number': 'green',
+    'Integer': 'green',
+    'Boolean': 'purple',
+    'Date': 'orange',
+    'DateTime': 'orange'
   }
-  return colorMap[type.toLowerCase()] || 'default'
+  return colorMap[type] || 'default'
 }
 
-// Get column sample values
+// Get column sample values from actual dataset
 function getColumnSampleValues(col: any): string {
-  // 根据列类型生成示例数据
-  if (col.type === 'string') {
-    return 'Sample text, Another value, Test data...'
-  } else if (col.type === 'number' || col.type === 'integer') {
-    return '123, 456, 789...'
-  } else if (col.type === 'boolean') {
-    return 'true, false, true...'
-  } else if (col.type === 'date') {
-    return '2025-01-01, 2025-01-02...'
+  if (!selectedNode.value || selectedNode.value.type !== 'dataset') {
+    return 'N/A'
   }
-  return 'N/A'
+
+  const datasetId = selectedNode.value.data?.datasetId
+  if (!datasetId) return 'N/A'
+
+  const data = getDatasetData(datasetId)
+  if (!data || data.length === 0) return 'N/A'
+
+  // Get first 3 sample values from actual data
+  const samples = data.slice(0, 3).map((row: any) => {
+    const value = row[col.name]
+    if (value === null || value === undefined) return 'null'
+
+    // Format based on type
+    if (col.type === 'Number') {
+      return typeof value === 'number' ? value.toFixed(2) : value
+    } else if (col.type === 'Date') {
+      return value
+    }
+    return String(value)
+  })
+
+  return samples.join(', ') + (data.length > 3 ? '...' : '')
 }
 
 // Apply transform
@@ -1064,6 +1101,24 @@ function handleZoom(type: 'in' | 'out' | 'fit') {
       canvasRef.value.centerContent()
       zoomLevel.value = 100
       break
+  }
+}
+
+// Auto layout
+function handleAutoLayout() {
+  if (!canvasRef.value) return
+
+  if (nodes.value.length === 0) {
+    message.warning('No nodes to layout')
+    return
+  }
+
+  try {
+    canvasRef.value.autoLayout()
+    message.success('Layout applied successfully')
+  } catch (error) {
+    console.error('Auto layout error:', error)
+    message.error('Failed to apply auto layout')
   }
 }
 

@@ -97,25 +97,17 @@ const initGraph = () => {
           shape: 'edge',
           attrs: {
             line: {
-              stroke: '#4285F4',
+              stroke: '#5F6368',
               strokeWidth: 2,
-              strokeDasharray: '5 5',
               strokeLinecap: 'round',
               targetMarker: {
-                name: 'block',
-                width: 10,
-                height: 8,
-                fill: '#4285F4'
-              },
-              style: {
-                animation: 'dash-flow 1s linear infinite'
+                name: 'circle',
+                r: 4,
+                fill: '#5F6368'
               }
             }
           },
-          zIndex: 1,
-          data: {
-            animated: true
-          }
+          zIndex: 1
         })
       },
       validateConnection({ sourceCell, targetCell, sourceMagnet, targetMagnet }) {
@@ -136,8 +128,53 @@ const initGraph = () => {
             edge.getSourceCellId() === sourceCell?.id &&
             edge.getTargetCellId() === targetCell?.id
         )
+        if (hasConnection) {
+          return false
+        }
 
-        return !hasConnection
+        // Get node types from data
+        const sourceNodeData = sourceCell?.getData()
+        const targetNodeData = targetCell?.getData()
+
+        // Dataset nodes cannot accept input connections (they are data sources)
+        if (targetNodeData?.type === 'dataset') {
+          return false
+        }
+
+        // Output nodes cannot be sources (they are endpoints)
+        if (sourceNodeData?.type === 'output') {
+          return false
+        }
+
+        // Prevent circular dependencies (basic check)
+        const wouldCreateCycle = (source: string, target: string): boolean => {
+          const downstreamNodes = new Set<string>([target])
+          const toCheck = [target]
+
+          while (toCheck.length > 0) {
+            const current = toCheck.pop()!
+            const outgoingEdges = edges.filter(e => e.getSourceCellId() === current)
+
+            for (const edge of outgoingEdges) {
+              const downstream = edge.getTargetCellId()
+              if (downstream === source) {
+                return true // Cycle detected
+              }
+              if (!downstreamNodes.has(downstream)) {
+                downstreamNodes.add(downstream)
+                toCheck.push(downstream)
+              }
+            }
+          }
+
+          return false
+        }
+
+        if (wouldCreateCycle(sourceCell!.id, targetCell!.id)) {
+          return false
+        }
+
+        return true
       }
     },
     highlighting: {
@@ -385,11 +422,9 @@ const bindEvents = () => {
 
   // 边悬停效果
   graph.on('edge:mouseenter', ({ edge }) => {
-    edge.attr('line/stroke', '#2D6EED')
+    edge.attr('line/stroke', '#4285F4')
     edge.attr('line/strokeWidth', 3)
-    edge.attr('line/strokeDasharray', '0')
-    edge.attr('line/targetMarker/fill', '#2D6EED')
-    edge.attr('line/style/animation', 'none')
+    edge.attr('line/targetMarker/fill', '#4285F4')
 
     // 添加边工具按钮
     if (!edge.hasTools()) {
@@ -427,22 +462,18 @@ const bindEvents = () => {
     const isSelected = selectedCells.some(cell => cell.id === edge.id)
 
     if (!isSelected) {
-      edge.attr('line/stroke', '#4285F4')
+      edge.attr('line/stroke', '#5F6368')
       edge.attr('line/strokeWidth', 2)
-      edge.attr('line/strokeDasharray', '5 5')
-      edge.attr('line/targetMarker/fill', '#4285F4')
-      edge.attr('line/style/animation', 'dash-flow 1s linear infinite')
+      edge.attr('line/targetMarker/fill', '#5F6368')
       edge.removeTools()
     }
   })
 
   // 边选中
   graph.on('edge:selected', ({ edge }) => {
-    edge.attr('line/stroke', '#2D6EED')
+    edge.attr('line/stroke', '#4285F4')
     edge.attr('line/strokeWidth', 3)
-    edge.attr('line/strokeDasharray', '0')
-    edge.attr('line/targetMarker/fill', '#2D6EED')
-    edge.attr('line/style/animation', 'none')
+    edge.attr('line/targetMarker/fill', '#4285F4')
 
     // 选中时添加工具
     if (!edge.hasTools()) {
@@ -463,11 +494,9 @@ const bindEvents = () => {
   })
 
   graph.on('edge:unselected', ({ edge }) => {
-    edge.attr('line/stroke', '#4285F4')
+    edge.attr('line/stroke', '#5F6368')
     edge.attr('line/strokeWidth', 2)
-    edge.attr('line/strokeDasharray', '5 5')
-    edge.attr('line/targetMarker/fill', '#4285F4')
-    edge.attr('line/style/animation', 'dash-flow 1s linear infinite')
+    edge.attr('line/targetMarker/fill', '#5F6368')
     edge.removeTools()
   })
 
@@ -542,21 +571,41 @@ const bindEvents = () => {
 const addNode = (nodeData: Node): X6Node | null => {
   if (!graph) return null
 
+  // Get node shape based on type
+  const getNodeShape = (type: string): string => {
+    const shapeMap: Record<string, string> = {
+      'dataset': 'dataset-node',
+      'transform': 'transform-node',
+      'join': 'join-node',
+      'output': 'output-node'
+    }
+    return shapeMap[type] || 'transform-node'
+  }
+
   // Prepare meta text based on node type
   let metaText = ''
   if (nodeData.type === 'dataset') {
+    const rowCount = nodeData.data?.rowCount || 0
     const columnCount = nodeData.data?.columnCount || 0
-    metaText = `${columnCount} columns`
+    if (rowCount > 0) {
+      metaText = `${rowCount.toLocaleString()} rows · ${columnCount} columns`
+    } else {
+      metaText = `${columnCount} columns`
+    }
   } else if (nodeData.type === 'transform') {
     const transformCount = nodeData.data?.transformCount || 0
     metaText = transformCount > 0
       ? `${transformCount} transformations`
       : `${nodeData.data?.columnCount || 0} columns`
+  } else if (nodeData.type === 'join') {
+    metaText = nodeData.data?.joinConfig?.type ? `${nodeData.data.joinConfig.type} join` : 'Inner join'
+  } else if (nodeData.type === 'output') {
+    metaText = nodeData.data?.outputName || 'Save to dataset'
   }
 
   const node = graph.addNode({
     id: nodeData.id,
-    shape: nodeData.type === 'dataset' ? 'dataset-node' : 'transform-node',
+    shape: getNodeShape(nodeData.type),
     x: nodeData.x,
     y: nodeData.y,
     data: nodeData
@@ -578,10 +627,24 @@ const addEdge = (edgeData: Edge): X6Edge | null => {
     source: { cell: edgeData.source, port: edgeData.sourcePort || 'port-out' },
     target: { cell: edgeData.target, port: edgeData.targetPort || 'port-in' },
     data: edgeData,
+    router: {
+      name: 'manhattan',
+      args: {
+        padding: 10,
+        step: 10
+      }
+    },
+    connector: {
+      name: 'rounded',
+      args: {
+        radius: 8
+      }
+    },
     attrs: {
       line: {
         stroke: '#98A2B3',
         strokeWidth: 2,
+        strokeLinecap: 'round',
         targetMarker: {
           name: 'block',
           width: 8,
@@ -590,7 +653,7 @@ const addEdge = (edgeData: Edge): X6Edge | null => {
         }
       }
     },
-    zIndex: -1
+    zIndex: 0
   })
 
   return edge
@@ -648,13 +711,22 @@ const updateNodeData = (id: string, data: Partial<Node>) => {
     if (data.data) {
       let metaText = ''
       if (updatedData.type === 'dataset') {
+        const rowCount = updatedData.data?.rowCount || 0
         const columnCount = updatedData.data?.columnCount || 0
-        metaText = `${columnCount} columns`
+        if (rowCount > 0) {
+          metaText = `${rowCount.toLocaleString()} rows · ${columnCount} columns`
+        } else {
+          metaText = `${columnCount} columns`
+        }
       } else if (updatedData.type === 'transform') {
         const transformCount = updatedData.data?.transformCount || 0
         metaText = transformCount > 0
           ? `${transformCount} transformations`
           : `${updatedData.data?.columnCount || 0} columns`
+      } else if (updatedData.type === 'join') {
+        metaText = updatedData.data?.joinConfig?.type ? `${updatedData.data.joinConfig.type} join` : 'Inner join'
+      } else if (updatedData.type === 'output') {
+        metaText = updatedData.data?.outputName || 'Save to dataset'
       }
       node.attr('meta/text', metaText)
     }
@@ -693,6 +765,89 @@ onUnmounted(() => {
   }
 })
 
+// Auto layout - 自动排列节点
+const autoLayout = () => {
+  if (!graph) return
+
+  const nodes = graph.getNodes()
+  const edges = graph.getEdges()
+
+  if (nodes.length === 0) return
+
+  // Build adjacency list for topological sort
+  const inDegree = new Map<string, number>()
+  const adjacencyList = new Map<string, string[]>()
+
+  nodes.forEach(node => {
+    inDegree.set(node.id, 0)
+    adjacencyList.set(node.id, [])
+  })
+
+  edges.forEach(edge => {
+    const source = edge.getSourceCellId()
+    const target = edge.getTargetCellId()
+    adjacencyList.get(source)?.push(target)
+    inDegree.set(target, (inDegree.get(target) || 0) + 1)
+  })
+
+  // Topological sort to determine layers
+  const layers: string[][] = []
+  const queue: string[] = []
+
+  // Start with nodes that have no incoming edges
+  inDegree.forEach((degree, nodeId) => {
+    if (degree === 0) {
+      queue.push(nodeId)
+    }
+  })
+
+  while (queue.length > 0) {
+    const currentLayer: string[] = [...queue]
+    layers.push(currentLayer)
+    queue.length = 0
+
+    currentLayer.forEach(nodeId => {
+      const neighbors = adjacencyList.get(nodeId) || []
+      neighbors.forEach(neighbor => {
+        const newDegree = (inDegree.get(neighbor) || 0) - 1
+        inDegree.set(neighbor, newDegree)
+        if (newDegree === 0) {
+          queue.push(neighbor)
+        }
+      })
+    })
+  }
+
+  // Layout configuration
+  const horizontalSpacing = 300 // Space between columns
+  const verticalSpacing = 120   // Space between nodes in same column
+  const startX = 100
+  const startY = 100
+
+  // Position nodes by layer
+  layers.forEach((layer, layerIndex) => {
+    const x = startX + layerIndex * horizontalSpacing
+    layer.forEach((nodeId, nodeIndex) => {
+      const node = graph.getCellById(nodeId)
+      if (node) {
+        const totalHeight = (layer.length - 1) * verticalSpacing
+        const y = startY + nodeIndex * verticalSpacing - totalHeight / 2
+        node.setPosition({ x, y }, { ui: false })
+
+        // Emit moved event for state sync
+        const nodeData = node.getData()
+        emit('node:moved', { node: nodeData, position: { x, y } })
+      }
+    })
+  })
+
+  // Center the layout
+  setTimeout(() => {
+    graph.centerContent()
+    graph.zoomToFit({ padding: 50, maxScale: 1 })
+  }, 100)
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -700,21 +855,12 @@ defineExpose({
   clearCanvas,
   getNode,
   updateNodeData,
-  getGraph: () => graph
+  getGraph: () => graph,
+  autoLayout
 })
 </script>
 
 <style scoped lang="less">
-// 数据流动画动画
-@keyframes dash-flow {
-  0% {
-    stroke-dashoffset: 0;
-  }
-  100% {
-    stroke-dashoffset: -10;
-  }
-}
-
 .graph-canvas {
   width: 100%;
   height: 100%;
@@ -730,9 +876,9 @@ defineExpose({
   }
 
   :deep(.x6-edge) {
-    // 应用数据流动画
+    // 连线过渡效果
     .x6-edge-line {
-      transition: all 0.3s ease;
+      transition: stroke 0.2s ease, stroke-width 0.2s ease;
     }
   }
 

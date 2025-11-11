@@ -105,31 +105,31 @@ export function registerDatasetNode() {
       ports: {
         groups: {
           in: {
-            position: { name: 'right', args: { y: 20 } },
+            position: { name: 'left', args: { y: 36 } },
             attrs: {
               circle: {
-                r: 6,
+                r: 4,
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 1.5,
                 fill: '#FFFFFF',
                 style: {
-                  visibility: 'visible'
+                  visibility: 'hidden'
                 }
               }
             }
           },
           out: {
-            position: { name: 'right', args: { y: 52 } },
+            position: { name: 'right', args: { y: 36 } },
             attrs: {
               circle: {
-                r: 6,
+                r: 4,
                 magnet: true,
                 stroke: '#98A2B3',
                 strokeWidth: 1.5,
                 fill: '#FFFFFF',
                 style: {
-                  visibility: 'visible'
+                  visibility: 'hidden'
                 }
               }
             }
