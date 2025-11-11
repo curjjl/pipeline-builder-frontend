@@ -141,6 +141,11 @@
           </a-button>
           <template #overlay>
             <a-menu @click="handleAddData" class="add-data-menu">
+              <a-menu-item key="import-data">
+                <UploadOutlined style="margin-right: 8px; color: #10B981;" />
+                <span style="font-weight: 500;">Import CSV/JSON...</span>
+              </a-menu-item>
+              <a-menu-divider />
               <a-menu-item
                 v-for="dataset in availableDatasets"
                 :key="dataset.id"
@@ -674,6 +679,12 @@
         </div>
       </div>
     </a-modal>
+
+    <!-- Data Import Dialog -->
+    <DataImportDialog
+      v-model:open="showImportDialog"
+      @import="handleDataImport"
+    />
   </div>
 </template>
 
@@ -716,7 +727,8 @@ import {
   NumberOutlined,
   CalendarOutlined,
   CheckCircleOutlined,
-  CloseCircleOutlined
+  CloseCircleOutlined,
+  UploadOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -731,6 +743,7 @@ import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
 import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
+import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -858,6 +871,9 @@ const draggingNodeData = ref<any>(null)
 const canUndo = ref(false)
 const canRedo = ref(false)
 
+// Import dialog
+const showImportDialog = ref(false)
+
 // Node ID counter
 let nodeIdCounter = 1
 
@@ -865,6 +881,12 @@ let nodeIdCounter = 1
 
 // Add dataset node
 function handleAddData({ key }: { key: string }) {
+  // Handle import data dialog
+  if (key === 'import-data') {
+    showImportDialog.value = true
+    return
+  }
+
   const dataset = getAllDatasets().find(d => d.id === key)
   if (!dataset) return
 
@@ -883,6 +905,27 @@ function handleAddData({ key }: { key: string }) {
 
   pipelineStore.addNode(node)
   message.success(`Added dataset: ${dataset.displayName} (${dataset.rowCount} rows, ${dataset.columns.length} columns)`)
+}
+
+// Handle imported data
+function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
+  const node: Node = {
+    id: `node-${nodeIdCounter++}`,
+    type: 'dataset',
+    name: name.replace(/\.(csv|json)$/i, ''),
+    x: 100 + Math.random() * 100,
+    y: 100 + Math.random() * 100,
+    data: {
+      datasetId: `imported-${Date.now()}`,
+      columnCount: columns.length,
+      rowCount: data.length,
+      columns,
+      importedData: data
+    }
+  }
+
+  pipelineStore.addNode(node)
+  message.success(`Imported ${data.length} rows with ${columns.length} columns`)
 }
 
 // Add transform node

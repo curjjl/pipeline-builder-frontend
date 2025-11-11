@@ -7,6 +7,7 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AAlert: typeof import('ant-design-vue/es')['Alert']
     AButton: typeof import('ant-design-vue/es')['Button']
     ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
     ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
@@ -25,6 +26,8 @@ declare module 'vue' {
     AMenuDivider: typeof import('ant-design-vue/es')['MenuDivider']
     AMenuItem: typeof import('ant-design-vue/es')['MenuItem']
     AModal: typeof import('ant-design-vue/es')['Modal']
+    ARadioButton: typeof import('ant-design-vue/es')['RadioButton']
+    ARadioGroup: typeof import('ant-design-vue/es')['RadioGroup']
     ASelect: typeof import('ant-design-vue/es')['Select']
     ASelectOption: typeof import('ant-design-vue/es')['SelectOption']
     ASpace: typeof import('ant-design-vue/es')['Space']
@@ -35,8 +38,10 @@ declare module 'vue' {
     ATag: typeof import('ant-design-vue/es')['Tag']
     ATextarea: typeof import('ant-design-vue/es')['Textarea']
     ATooltip: typeof import('ant-design-vue/es')['Tooltip']
+    AUploadDragger: typeof import('ant-design-vue/es')['UploadDragger']
     CastTransform: typeof import('./../components/pipeline/transforms/CastTransform.vue')['default']
     ContextMenu: typeof import('./../components/common/ContextMenu.vue')['default']
+    DataImportDialog: typeof import('./../components/pipeline/DataImportDialog.vue')['default']
     DataPreviewPanel: typeof import('./../components/pipeline/DataPreviewPanel.vue')['default']
     DataTable: typeof import('./../components/pipeline/DataTable.vue')['default']
     FilterTransform: typeof import('./../components/pipeline/transforms/FilterTransform.vue')['default']
