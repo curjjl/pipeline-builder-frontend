@@ -110,6 +110,38 @@
           @cancel="handleCancel"
         />
 
+        <!-- Remove Columns 转换 -->
+        <RemoveColumnsTransform
+          v-else-if="selectedTransform === 'removeColumns'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Trim Whitespace 转换 -->
+        <TrimTransform
+          v-else-if="selectedTransform === 'trimWhitespace'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Replace Values 转换 -->
+        <ReplaceTransform
+          v-else-if="selectedTransform === 'replaceValues'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Split Columns 转换 -->
+        <SplitColumnsTransform
+          v-else-if="selectedTransform === 'splitColumns'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
         <!-- 通用转换配置 -->
         <GenericTransform
           v-else
@@ -132,6 +164,10 @@ import CastTransform from './transforms/CastTransform.vue'
 import SelectColumnsTransform from './transforms/SelectColumnsTransform.vue'
 import RenameColumnsTransform from './transforms/RenameColumnsTransform.vue'
 import AddColumnTransform from './transforms/AddColumnTransform.vue'
+import RemoveColumnsTransform from './transforms/RemoveColumnsTransform.vue'
+import TrimTransform from './transforms/TrimTransform.vue'
+import ReplaceTransform from './transforms/ReplaceTransform.vue'
+import SplitColumnsTransform from './transforms/SplitColumnsTransform.vue'
 import GenericTransform from './transforms/GenericTransform.vue'
 import type { Node } from '@/stores/modules/pipeline'
 
@@ -205,16 +241,28 @@ const transforms = [
     description: 'Rename one or more columns.'
   },
   {
-    key: 'trim',
-    name: 'Trim whitespace',
+    key: 'removeColumns',
+    name: 'Remove columns',
     category: ['all', 'data-prep'],
-    description: 'Remove leading/trailing whitespace from strings.'
+    description: 'Remove one or more columns from the dataset.'
   },
   {
-    key: 'split',
+    key: 'trimWhitespace',
+    name: 'Trim whitespace',
+    category: ['all', 'data-prep'],
+    description: 'Remove leading/trailing whitespace from text columns.'
+  },
+  {
+    key: 'replaceValues',
+    name: 'Replace values',
+    category: ['all', 'data-prep'],
+    description: 'Find and replace values using exact match, contains, or regex.'
+  },
+  {
+    key: 'splitColumns',
     name: 'Split column',
     category: ['all', 'data-prep'],
-    description: 'Split a column into multiple columns.'
+    description: 'Split a column into multiple columns based on delimiter.'
   },
   {
     key: 'distinct',

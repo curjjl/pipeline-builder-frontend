@@ -46,13 +46,17 @@ declare module 'vue' {
     JoinTransform: typeof import('./../components/pipeline/transforms/JoinTransform.vue')['default']
     NodePalette: typeof import('./../components/pipeline/NodePalette.vue')['default']
     NodeToolbar: typeof import('./../components/pipeline/NodeToolbar.vue')['default']
+    RemoveColumnsTransform: typeof import('./../components/pipeline/transforms/RemoveColumnsTransform.vue')['default']
     RenameColumnsTransform: typeof import('./../components/pipeline/transforms/RenameColumnsTransform.vue')['default']
+    ReplaceTransform: typeof import('./../components/pipeline/transforms/ReplaceTransform.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SelectColumnsTransform: typeof import('./../components/pipeline/transforms/SelectColumnsTransform.vue')['default']
     SortTransform: typeof import('./../components/pipeline/transforms/SortTransform.vue')['default']
+    SplitColumnsTransform: typeof import('./../components/pipeline/transforms/SplitColumnsTransform.vue')['default']
     ToolButton: typeof import('./../components/common/ToolButton.vue')['default']
     TransformConfigPanel: typeof import('./../components/pipeline/TransformConfigPanel.vue')['default']
     TransformPanel: typeof import('./../components/pipeline/TransformPanel.vue')['default']
+    TrimTransform: typeof import('./../components/pipeline/transforms/TrimTransform.vue')['default']
   }
 }

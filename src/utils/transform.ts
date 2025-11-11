@@ -10,17 +10,21 @@ export type TransformType =
   | 'rename'           // 重命名列（旧版）
   | 'renameColumns'    // 重命名列（新版，支持批量）
   | 'cast'             // 类型转换
-  | 'trim'             // 去除空白
-  | 'split'            // 拆分列
+  | 'trim'             // 去除空白（旧版，单列）
+  | 'trimWhitespace'   // 去除空白（新版，多列）
+  | 'split'            // 拆分列（旧版）
+  | 'splitColumns'     // 拆分列（新版，增强）
   | 'join'             // 连接表
   | 'union'            // 合并表
   | 'groupBy'          // 分组聚合
   | 'sort'             // 排序
   | 'distinct'         // 去重
   | 'addColumn'        // 添加列
-  | 'removeColumn'     // 删除列
+  | 'removeColumn'     // 删除列（旧版，单次调用）
+  | 'removeColumns'    // 删除列（新版，批量）
   | 'fillNull'         // 填充空值
-  | 'replace'          // 替换值
+  | 'replace'          // 替换值（旧版，简单）
+  | 'replaceValues'    // 替换值（新版，多模式）
 
 export interface Transform {
   id: string
@@ -68,8 +72,14 @@ export function applyTransform(data: any[], transform: Transform): TransformResu
       case 'trim':
         result = applyTrim(data, params)
         break
+      case 'trimWhitespace':
+        result = applyTrimWhitespace(data, params)
+        break
       case 'split':
         result = applySplit(data, params)
+        break
+      case 'splitColumns':
+        result = applySplitColumns(data, params)
         break
       case 'groupBy':
         result = applyGroupBy(data, params)
@@ -86,11 +96,17 @@ export function applyTransform(data: any[], transform: Transform): TransformResu
       case 'removeColumn':
         result = applyRemoveColumn(data, params)
         break
+      case 'removeColumns':
+        result = applyRemoveColumns(data, params)
+        break
       case 'fillNull':
         result = applyFillNull(data, params)
         break
       case 'replace':
         result = applyReplace(data, params)
+        break
+      case 'replaceValues':
+        result = applyReplaceValues(data, params)
         break
       default:
         result = data
@@ -617,4 +633,153 @@ function applyAddColumn(data: any[], params: any): any[] {
 
     return newRow
   })
+}
+
+/**
+ * Remove Columns - 删除多列（新版）
+ * params: { columns: string[] }
+ */
+function applyRemoveColumns(data: any[], params: any): any[] {
+  const { columns } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+    columns.forEach((col: string) => {
+      delete newRow[col]
+    })
+    return newRow
+  })
+}
+
+/**
+ * Trim Whitespace - 去除空白（新版，支持多列和多模式）
+ * params: { mode: 'both' | 'start' | 'end', columns: string[] }
+ */
+function applyTrimWhitespace(data: any[], params: any): any[] {
+  const { mode = 'both', columns } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+
+    columns.forEach((col: string) => {
+      if (col in newRow) {
+        const value = String(newRow[col] || '')
+
+        switch (mode) {
+          case 'start':
+            newRow[col] = value.trimStart()
+            break
+          case 'end':
+            newRow[col] = value.trimEnd()
+            break
+          case 'both':
+          default:
+            newRow[col] = value.trim()
+            break
+        }
+      }
+    })
+
+    return newRow
+  })
+}
+
+/**
+ * Replace Values - 替换值（新版，支持多种模式）
+ * params: {
+ *   column: string,
+ *   mode: 'exact' | 'contains' | 'regex',
+ *   findValue: string,
+ *   replaceValue: string,
+ *   caseSensitive: boolean
+ * }
+ */
+function applyReplaceValues(data: any[], params: any): any[] {
+  const { column, mode, findValue, replaceValue, caseSensitive = true } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+
+    if (column in newRow) {
+      const value = String(newRow[column] || '')
+
+      switch (mode) {
+        case 'exact':
+          // 精确匹配
+          if (caseSensitive) {
+            if (value === findValue) {
+              newRow[column] = replaceValue
+            }
+          } else {
+            if (value.toLowerCase() === findValue.toLowerCase()) {
+              newRow[column] = replaceValue
+            }
+          }
+          break
+
+        case 'contains':
+          // 包含匹配
+          if (caseSensitive) {
+            newRow[column] = value.replace(new RegExp(escapeRegex(findValue), 'g'), replaceValue)
+          } else {
+            newRow[column] = value.replace(new RegExp(escapeRegex(findValue), 'gi'), replaceValue)
+          }
+          break
+
+        case 'regex':
+          // 正则表达式匹配
+          try {
+            newRow[column] = value.replace(new RegExp(findValue, 'g'), replaceValue)
+          } catch (error) {
+            // 正则表达式无效，保持原值
+          }
+          break
+      }
+    }
+
+    return newRow
+  })
+}
+
+/**
+ * Split Columns - 分割列（新版，支持更多选项）
+ * params: {
+ *   column: string,
+ *   delimiter: string,
+ *   numColumns: number,
+ *   columnNames: string[],
+ *   removeSource: boolean
+ * }
+ */
+function applySplitColumns(data: any[], params: any): any[] {
+  const { column, delimiter, numColumns, columnNames, removeSource = true } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+
+    if (column in newRow) {
+      const value = String(newRow[column] || '')
+      const parts = value.split(delimiter)
+
+      // 创建新列
+      for (let i = 0; i < numColumns; i++) {
+        const newColName = columnNames[i] || `${column}_${i + 1}`
+        newRow[newColName] = parts[i] || ''
+      }
+
+      // 是否删除源列
+      if (removeSource) {
+        delete newRow[column]
+      }
+    }
+
+    return newRow
+  })
+}
+
+/**
+ * 辅助函数：转义正则表达式特殊字符
+ */
+function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
