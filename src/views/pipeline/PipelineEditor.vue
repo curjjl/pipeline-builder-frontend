@@ -600,6 +600,36 @@
       @close="contextMenuVisible = false"
     />
 
+    <!-- Data Clean Actions Popup Menu (Palantir Style) -->
+    <div
+      v-if="cleanMenuVisible"
+      class="clean-actions-popup"
+      :style="{
+        left: cleanMenuX + 'px',
+        top: cleanMenuY + 'px'
+      }"
+      @click.stop
+    >
+      <div class="clean-menu-item" @click="handleCleanAction('transform')">
+        <div class="clean-menu-icon" style="background: #EFF8FF;">
+          <FilterOutlined style="color: #1570EF; font-size: 18px;" />
+        </div>
+        <span class="clean-menu-label" style="color: #1570EF;">Transform</span>
+      </div>
+      <div class="clean-menu-item" @click="handleCleanAction('join')">
+        <div class="clean-menu-icon" style="background: #F4F3FF;">
+          <MergeCellsOutlined style="color: #7F56D9; font-size: 18px;" />
+        </div>
+        <span class="clean-menu-label" style="color: #7F56D9;">Join</span>
+      </div>
+      <div class="clean-menu-item" @click="handleCleanAction('union')">
+        <div class="clean-menu-icon" style="background: #FEF3F2;">
+          <PlusOutlined style="color: #F04438; font-size: 18px;" />
+        </div>
+        <span class="clean-menu-label" style="color: #F04438;">Union</span>
+      </div>
+    </div>
+
     <!-- Rename Node Modal -->
     <a-modal
       v-model:open="renameModalVisible"
@@ -804,6 +834,12 @@ const isRenameValid = computed(() => {
   return renameNodeName.value.trim().length > 0
 })
 
+// Data clean actions menu
+const cleanMenuVisible = ref(false)
+const cleanMenuX = ref(0)
+const cleanMenuY = ref(0)
+const cleanMenuTargetNode = ref<Node | null>(null)
+
 // Undo/Redo
 const canUndo = ref(false)
 const canRedo = ref(false)
@@ -916,6 +952,37 @@ function handleNodeClick(node: Node) {
   bottomTab.value = 'selection-preview'
   // 默认显示About标签页
   subTab.value = 'about'
+
+  // If it's a dataset node, show clean actions menu
+  if (node.type === 'dataset') {
+    showCleanActionsMenu(node)
+  } else {
+    cleanMenuVisible.value = false
+  }
+}
+
+// Show clean actions menu next to dataset node
+function showCleanActionsMenu(node: Node) {
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  const cell = graph.getCellById(node.id)
+  if (!cell) return
+
+  // Get node position and size
+  const bbox = cell.getBBox()
+  const zoom = graph.zoom()
+
+  // Calculate menu position (to the right of node)
+  const canvasContainer = graph.container
+  const containerRect = canvasContainer.getBoundingClientRect()
+
+  // Position menu to the right of the node
+  cleanMenuX.value = containerRect.left + (bbox.x + bbox.width + 20) * zoom
+  cleanMenuY.value = containerRect.top + (bbox.y + bbox.height / 2 - 60) * zoom
+
+  cleanMenuTargetNode.value = node
+  cleanMenuVisible.value = true
 }
 
 // Node double click
@@ -1059,6 +1126,98 @@ function handleEdgeContextMenu({ edge, event }: { edge: Edge; event: MouseEvent 
 function handleCanvasClick() {
   pipelineStore.setSelectedNodes([])
   contextMenuVisible.value = false
+  cleanMenuVisible.value = false
+}
+
+// Handle clean action selection from popup menu
+function handleCleanAction(action: 'transform' | 'join' | 'union') {
+  const sourceNode = cleanMenuTargetNode.value
+  if (!sourceNode) return
+
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  let newNode: Node | null = null
+
+  // Create node based on action type
+  switch (action) {
+    case 'transform':
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'transform',
+        name: `${sourceNode.name} - clean`,
+        x: sourceNode.x + 300,
+        y: sourceNode.y,
+        data: {
+          transformCount: 0,
+          transformConfig: null
+        }
+      }
+      break
+
+    case 'join':
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'join',
+        name: 'Join',
+        x: sourceNode.x + 300,
+        y: sourceNode.y,
+        data: {
+          joinConfig: {
+            type: 'Inner',
+            leftKey: '',
+            rightKey: ''
+          }
+        }
+      }
+      break
+
+    case 'union':
+      // Union is similar to join but with union operation
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'join',
+        name: 'Union',
+        x: sourceNode.x + 300,
+        y: sourceNode.y,
+        data: {
+          joinConfig: {
+            type: 'Union',
+            leftKey: '',
+            rightKey: ''
+          }
+        }
+      }
+      break
+  }
+
+  if (newNode) {
+    // Add node to store
+    pipelineStore.addNode(newNode)
+
+    // Create edge connecting source node to new node
+    const edge: Edge = {
+      id: `edge-${Date.now()}`,
+      source: sourceNode.id,
+      target: newNode.id
+    }
+    pipelineStore.addEdge(edge)
+
+    message.success(`${action === 'transform' ? 'Transform' : action === 'join' ? 'Join' : 'Union'} node added and connected`)
+
+    // If it's a transform node, auto-open config panel
+    if (action === 'transform') {
+      setTimeout(() => {
+        selectedTransformNode.value = newNode
+        showTransformConfig.value = true
+        rightPanelVisible.value = true
+      }, 100)
+    }
+  }
+
+  // Hide clean menu
+  cleanMenuVisible.value = false
+  cleanMenuTargetNode.value = null
 }
 
 // Nodes copied
@@ -2664,6 +2823,60 @@ onUnmounted(() => {
     background: #F0F7FF;
     border: 1px solid #D4E8FF;
     border-radius: 6px;
+  }
+}
+
+// ==================== Clean Actions Popup Menu (Palantir Style) ====================
+.clean-actions-popup {
+  position: fixed;
+  z-index: 1000;
+  background: #FFFFFF;
+  border: 1px solid #E4E7EB;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 8px;
+  min-width: 160px;
+  animation: fadeInScale 0.2s ease-out;
+
+  .clean-menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+
+    &:hover {
+      background: #F8F9FA;
+    }
+
+    .clean-menu-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+
+    .clean-menu-label {
+      font-size: 14px;
+      font-weight: 500;
+      flex: 1;
+    }
+  }
+}
+
+@keyframes fadeInScale {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
   }
 }
 </style>
