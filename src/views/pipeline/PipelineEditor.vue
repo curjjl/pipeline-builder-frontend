@@ -232,6 +232,7 @@
       <div
         class="right-panel"
         :style="{ width: rightPanelWidth + 'px' }"
+        v-if="rightPanelVisible"
       >
         <div
           class="resize-handle resize-handle-left"
@@ -240,16 +241,26 @@
 
         <!-- Right panel sections -->
         <div class="right-panel-content">
+          <!-- Transform Config Panel -->
+          <TransformConfigPanel
+            v-if="showTransformConfig && selectedTransformNode"
+            :node="selectedTransformNode"
+            :columns="getNodeColumns(selectedTransformNode)"
+            @close="handleCloseTransformConfig"
+            @apply="handleApplyTransform"
+          />
+
           <!-- Pipeline outputs section -->
-          <div class="panel-section">
-            <div class="section-header">
-              <div class="section-title">
-                <h3>Pipeline outputs</h3>
-                <a-button type="text" size="small" class="pin-btn">
-                  <PushpinOutlined />
-                </a-button>
+          <div v-else class="pipeline-outputs-section">
+            <div class="panel-section">
+              <div class="section-header">
+                <div class="section-title">
+                  <h3>Pipeline outputs</h3>
+                  <a-button type="text" size="small" class="pin-btn">
+                    <PushpinOutlined />
+                  </a-button>
+                </div>
               </div>
-            </div>
 
             <div class="section-content">
               <p class="section-desc">
@@ -343,6 +354,7 @@
                 </div>
               </div>
             </div>
+          </div>
           </div>
         </div>
       </div>
@@ -631,6 +643,7 @@ import ToolButton from '@/components/common/ToolButton.vue'
 import ContextMenu from '@/components/common/ContextMenu.vue'
 import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
+import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -690,10 +703,15 @@ const filteredColumns = computed(() => {
 const outputs = ref<any[]>([])
 
 // Right panel
-const rightPanelWidth = ref(320)
+const rightPanelWidth = ref(400)
+const rightPanelVisible = ref(true)
 const legendExpanded = ref(false)
 const settingsExpanded = ref(false)
 const showGrid = ref(false)
+
+// Transform config panel
+const showTransformConfig = ref(false)
+const selectedTransformNode = ref<Node | null>(null)
 const snapToGrid = ref(true)
 const autoLayout = ref(false)
 
@@ -801,8 +819,16 @@ function handleNodeClick(node: Node) {
 // Node double click
 function handleNodeDoubleClick(node: Node) {
   pipelineStore.setSelectedNodes([node.id])
-  bottomPanelVisible.value = true
-  bottomTab.value = 'transformations'
+
+  // If it's a transform node, show transform config panel
+  if (node.type === 'transform') {
+    selectedTransformNode.value = node
+    showTransformConfig.value = true
+    rightPanelVisible.value = true
+  } else {
+    bottomPanelVisible.value = true
+    bottomTab.value = 'transformations'
+  }
 }
 
 // Node context menu
@@ -1071,16 +1097,58 @@ function getColumnSampleValues(col: any): string {
 
 // Apply transform
 async function handleApplyTransform(transform: any) {
-  if (!selectedNode.value) return
+  const targetNode = selectedTransformNode.value || selectedNode.value
+  if (!targetNode) return
 
   try {
-    await pipelineStore.addTransform(selectedNode.value.id, transform)
-    message.success(`Transform "${transform.name || transform.type}" applied`)
+    // Update node data with transform configuration
+    pipelineStore.updateNode(targetNode.id, {
+      data: {
+        ...targetNode.data,
+        transformConfig: transform,
+        transformCount: (targetNode.data?.transformCount || 0) + 1
+      }
+    })
+
+    message.success(`Transform "${transform.type}" applied`)
+
+    // Close transform config panel
+    showTransformConfig.value = false
+    selectedTransformNode.value = null
 
     bottomTab.value = 'preview'
   } catch (error: any) {
     message.error(`Failed to apply transform: ${error.message}`)
   }
+}
+
+// Close transform config panel
+function handleCloseTransformConfig() {
+  showTransformConfig.value = false
+  selectedTransformNode.value = null
+}
+
+// Get node columns
+function getNodeColumns(node: Node) {
+  if (!node) return []
+
+  if (node.type === 'dataset') {
+    const datasetId = node.data?.datasetId
+    const meta = getDatasetMeta(datasetId)
+    return meta?.columns || []
+  }
+
+  // For transform nodes, get columns from input node
+  const edges = pipelineStore.edges
+  const inputEdge = edges.find(e => e.target === node.id)
+  if (inputEdge) {
+    const inputNode = pipelineStore.nodes.find(n => n.id === inputEdge.source)
+    if (inputNode) {
+      return getNodeColumns(inputNode)
+    }
+  }
+
+  return []
 }
 
 // Cancel transform
