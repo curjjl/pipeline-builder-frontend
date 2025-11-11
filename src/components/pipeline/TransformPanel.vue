@@ -86,6 +86,30 @@
           @cancel="handleCancel"
         />
 
+        <!-- Select Columns 转换 -->
+        <SelectColumnsTransform
+          v-else-if="selectedTransform === 'selectColumns'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Rename Columns 转换 -->
+        <RenameColumnsTransform
+          v-else-if="selectedTransform === 'renameColumns'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Add Column 转换 -->
+        <AddColumnTransform
+          v-else-if="selectedTransform === 'addColumn'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
         <!-- 通用转换配置 -->
         <GenericTransform
           v-else
@@ -105,6 +129,9 @@ import FilterTransform from './transforms/FilterTransform.vue'
 import GroupByTransform from './transforms/GroupByTransform.vue'
 import SortTransform from './transforms/SortTransform.vue'
 import CastTransform from './transforms/CastTransform.vue'
+import SelectColumnsTransform from './transforms/SelectColumnsTransform.vue'
+import RenameColumnsTransform from './transforms/RenameColumnsTransform.vue'
+import AddColumnTransform from './transforms/AddColumnTransform.vue'
 import GenericTransform from './transforms/GenericTransform.vue'
 import type { Node } from '@/stores/modules/pipeline'
 
@@ -166,16 +193,16 @@ const transforms = [
     description: 'Cast column to different type.'
   },
   {
-    key: 'select',
+    key: 'selectColumns',
     name: 'Select columns',
     category: ['all', 'data-prep'],
-    description: 'Select specific columns to keep.'
+    description: 'Select specific columns to keep or exclude.'
   },
   {
-    key: 'rename',
-    name: 'Rename column',
+    key: 'renameColumns',
+    name: 'Rename columns',
     category: ['all', 'data-prep'],
-    description: 'Rename a column.'
+    description: 'Rename one or more columns.'
   },
   {
     key: 'trim',
@@ -196,10 +223,10 @@ const transforms = [
     description: 'Remove duplicate rows.'
   },
   {
-    key: 'add-column',
+    key: 'addColumn',
     name: 'Add column',
     category: ['all', 'data-prep'],
-    description: 'Add a new calculated column.'
+    description: 'Add a new calculated column with expressions.'
   },
   {
     key: 'fill-null',

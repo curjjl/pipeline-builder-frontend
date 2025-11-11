@@ -194,8 +194,17 @@
 
     <!-- Main content area -->
     <div class="main-content">
+      <!-- Node Palette -->
+      <NodePalette
+        @node-drag-start="handleNodeDragStart"
+        @node-drag-end="handleNodeDragEnd"
+      />
+
       <!-- Canvas area -->
-      <div class="canvas-area">
+      <div class="canvas-area"
+        @drop="handleCanvasDrop"
+        @dragover="handleCanvasDragOver"
+      >
         <GraphCanvas
           ref="canvasRef"
           :nodes="nodes"
@@ -721,6 +730,7 @@ import ContextMenu from '@/components/common/ContextMenu.vue'
 import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
 import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue'
+import NodePalette from '@/components/pipeline/NodePalette.vue'
 import { useRouter } from 'vue-router'
 
 const route = useRoute()
@@ -839,6 +849,10 @@ const cleanMenuVisible = ref(false)
 const cleanMenuX = ref(0)
 const cleanMenuY = ref(0)
 const cleanMenuTargetNode = ref<Node | null>(null)
+
+// Node drag state
+const draggingNodeType = ref<string | null>(null)
+const draggingNodeData = ref<any>(null)
 
 // Undo/Redo
 const canUndo = ref(false)
@@ -1826,6 +1840,135 @@ function stopResize() {
   document.removeEventListener('mouseup', stopResize)
 }
 
+// ==================== Node Drag from Palette ====================
+
+// Handle node drag from palette
+function handleNodeDragStart(node: any) {
+  draggingNodeType.value = node.type
+  draggingNodeData.value = node
+}
+
+function handleNodeDragEnd() {
+  draggingNodeType.value = null
+  draggingNodeData.value = null
+}
+
+function handleCanvasDragOver(event: DragEvent) {
+  event.preventDefault()
+  if (event.dataTransfer) {
+    event.dataTransfer.dropEffect = 'copy'
+  }
+}
+
+function handleCanvasDrop(event: DragEvent) {
+  event.preventDefault()
+
+  const nodeType = event.dataTransfer?.getData('application/x-node-type')
+  const nodeDataStr = event.dataTransfer?.getData('application/x-node-data')
+
+  if (!nodeType || !nodeDataStr) return
+
+  const nodeData = JSON.parse(nodeDataStr)
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  // Get canvas container position
+  const canvasContainer = event.currentTarget as HTMLElement
+  const rect = canvasContainer.getBoundingClientRect()
+
+  // Calculate position relative to canvas
+  const x = event.clientX - rect.left
+  const y = event.clientY - rect.top
+
+  // Convert to graph coordinates
+  const graphPoint = graph.localToGraph(x, y)
+
+  // Create node based on type
+  let newNode: Node | null = null
+
+  switch (nodeType) {
+    case 'dataset':
+      // For dataset nodes, add default dataset at drop position
+      handleAddDataAtPosition(graphPoint.x, graphPoint.y)
+      break
+
+    case 'transform':
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'transform',
+        name: 'Transform',
+        x: graphPoint.x,
+        y: graphPoint.y,
+        data: {
+          transformCount: 0,
+          transformConfig: null
+        }
+      }
+      break
+
+    case 'join':
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'join',
+        name: 'Join',
+        x: graphPoint.x,
+        y: graphPoint.y,
+        data: {
+          joinConfig: {
+            type: 'Inner',
+            leftKey: '',
+            rightKey: ''
+          }
+        }
+      }
+      break
+
+    case 'output':
+      newNode = {
+        id: `node-${nodeIdCounter++}`,
+        type: 'output',
+        name: 'Output',
+        x: graphPoint.x,
+        y: graphPoint.y,
+        data: {
+          outputName: 'result_dataset'
+        }
+      }
+      break
+  }
+
+  if (newNode) {
+    pipelineStore.addNode(newNode)
+    message.success(`${nodeData.name} node added`)
+  }
+
+  handleNodeDragEnd()
+}
+
+function handleAddDataAtPosition(x: number, y: number) {
+  // For dataset nodes, add Products dataset by default
+  const datasets = getAllDatasets()
+  if (datasets.length > 0) {
+    const dataset = datasets[0] // Default to first dataset
+
+    const node: Node = {
+      id: `node-${nodeIdCounter++}`,
+      type: 'dataset',
+      name: dataset.displayName,
+      x,
+      y,
+      data: {
+        datasetId: dataset.id,
+        columnCount: dataset.columns.length,
+        rowCount: dataset.rowCount
+      }
+    }
+
+    pipelineStore.addNode(node)
+    message.success(`Added dataset: ${dataset.displayName}`)
+  }
+}
+
 // ==================== Lifecycle ====================
 
 onMounted(async () => {
@@ -2121,6 +2264,7 @@ onUnmounted(() => {
   display: flex;
   overflow: hidden;
   position: relative;
+  min-height: 0;
 }
 
 .canvas-area {

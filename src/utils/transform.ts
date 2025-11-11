@@ -5,8 +5,10 @@
 
 export type TransformType =
   | 'filter'           // 筛选
-  | 'select'           // 选择列
-  | 'rename'           // 重命名列
+  | 'select'           // 选择列（旧版）
+  | 'selectColumns'    // 选择列（新版，支持include/exclude）
+  | 'rename'           // 重命名列（旧版）
+  | 'renameColumns'    // 重命名列（新版，支持批量）
   | 'cast'             // 类型转换
   | 'trim'             // 去除空白
   | 'split'            // 拆分列
@@ -23,9 +25,10 @@ export type TransformType =
 export interface Transform {
   id: string
   type: TransformType
-  name: string
-  params: any
-  enabled: boolean
+  name?: string
+  config?: any  // 新版使用config而不是params
+  params?: any  // 保留兼容旧版
+  enabled?: boolean
 }
 
 export interface TransformResult {
@@ -41,46 +44,53 @@ export interface TransformResult {
 export function applyTransform(data: any[], transform: Transform): TransformResult {
   try {
     let result: any[] = []
+    const params = transform.config || transform.params  // 支持新旧两种参数格式
 
     switch (transform.type) {
       case 'filter':
-        result = applyFilter(data, transform.params)
+        result = applyFilter(data, params)
         break
       case 'select':
-        result = applySelect(data, transform.params)
+        result = applySelect(data, params)
+        break
+      case 'selectColumns':
+        result = applySelectColumns(data, params)
         break
       case 'rename':
-        result = applyRename(data, transform.params)
+        result = applyRename(data, params)
+        break
+      case 'renameColumns':
+        result = applyRenameColumns(data, params)
         break
       case 'cast':
-        result = applyCast(data, transform.params)
+        result = applyCast(data, params)
         break
       case 'trim':
-        result = applyTrim(data, transform.params)
+        result = applyTrim(data, params)
         break
       case 'split':
-        result = applySplit(data, transform.params)
+        result = applySplit(data, params)
         break
       case 'groupBy':
-        result = applyGroupBy(data, transform.params)
+        result = applyGroupBy(data, params)
         break
       case 'sort':
-        result = applySort(data, transform.params)
+        result = applySort(data, params)
         break
       case 'distinct':
-        result = applyDistinct(data, transform.params)
+        result = applyDistinct(data, params)
         break
       case 'addColumn':
-        result = applyAddColumn(data, transform.params)
+        result = applyAddColumn(data, params)
         break
       case 'removeColumn':
-        result = applyRemoveColumn(data, transform.params)
+        result = applyRemoveColumn(data, params)
         break
       case 'fillNull':
-        result = applyFillNull(data, transform.params)
+        result = applyFillNull(data, params)
         break
       case 'replace':
-        result = applyReplace(data, transform.params)
+        result = applyReplace(data, params)
         break
       default:
         result = data
@@ -398,37 +408,6 @@ function applyDistinct(data: any[], params: any): any[] {
 }
 
 /**
- * AddColumn - 添加计算列
- * params: { name: string, expression: string | Function }
- */
-function applyAddColumn(data: any[], params: any): any[] {
-  const { name, expression } = params
-
-  return data.map(row => {
-    const newRow = { ...row }
-
-    if (typeof expression === 'function') {
-      newRow[name] = expression(row)
-    } else if (typeof expression === 'string') {
-      // 简单的表达式计算（示例）
-      try {
-        // 替换列名为实际值
-        let expr = expression
-        Object.keys(row).forEach(col => {
-          expr = expr.replace(new RegExp(`\\b${col}\\b`, 'g'), String(row[col]))
-        })
-        // eslint-disable-next-line no-eval
-        newRow[name] = eval(expr)
-      } catch (error) {
-        newRow[name] = null
-      }
-    }
-
-    return newRow
-  })
-}
-
-/**
  * RemoveColumn - 删除列
  * params: { columns: string[] }
  */
@@ -540,4 +519,102 @@ export function joinDatasets(params: {
  */
 export function unionDatasets(data1: any[], data2: any[]): any[] {
   return [...data1, ...data2]
+}
+
+/**
+ * Select Columns - 选择列（新版，支持include/exclude模式）
+ * params: { mode: 'include' | 'exclude', columns: string[] }
+ */
+function applySelectColumns(data: any[], params: any): any[] {
+  const { mode, columns } = params
+
+  if (mode === 'include') {
+    // Include模式：只保留选中的列
+    return data.map(row => {
+      const newRow: any = {}
+      columns.forEach((col: string) => {
+        if (col in row) {
+          newRow[col] = row[col]
+        }
+      })
+      return newRow
+    })
+  } else {
+    // Exclude模式：排除选中的列
+    return data.map(row => {
+      const newRow = { ...row }
+      columns.forEach((col: string) => {
+        delete newRow[col]
+      })
+      return newRow
+    })
+  }
+}
+
+/**
+ * Rename Columns - 重命名列（新版，支持批量）
+ * params: { renames: Array<{ from: string, to: string }> }
+ */
+function applyRenameColumns(data: any[], params: any): any[] {
+  const { renames } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+    renames.forEach(({ from, to }: { from: string; to: string }) => {
+      if (from in newRow) {
+        newRow[to] = newRow[from]
+        delete newRow[from]
+      }
+    })
+    return newRow
+  })
+}
+
+/**
+ * Add Column - 添加计算列（增强版，支持复杂表达式）
+ * params: { columnName: string, expression: string, dataType?: string }
+ */
+function applyAddColumn(data: any[], params: any): any[] {
+  const { columnName, expression, dataType = 'auto' } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+
+    try {
+      // 解析表达式并计算值
+      let value: any
+
+      // 简单表达式解析（支持 row.column 访问和基本运算）
+      if (expression.includes('row.')) {
+        // 使用Function创建表达式求值器
+        const func = new Function('row', `return ${expression}`)
+        value = func(row)
+      } else {
+        // 常量表达式
+        value = eval(expression)
+      }
+
+      // 类型转换
+      if (dataType !== 'auto') {
+        switch (dataType) {
+          case 'string':
+            value = String(value)
+            break
+          case 'number':
+            value = Number(value)
+            break
+          case 'boolean':
+            value = Boolean(value)
+            break
+        }
+      }
+
+      newRow[columnName] = value
+    } catch (error) {
+      // 表达式执行失败，设置为null
+      newRow[columnName] = null
+    }
+
+    return newRow
+  })
 }
