@@ -109,6 +109,9 @@ export const usePipelineStore = defineStore('pipeline', {
     },
 
     addNode(node: Node) {
+      // 确保 Map 对象正确初始化
+      this.ensureMapsInitialized()
+
       this.nodes.push(node)
       this.isDirty = true
 
@@ -120,6 +123,9 @@ export const usePipelineStore = defineStore('pipeline', {
     },
 
     removeNode(id: string) {
+      // 确保 Map 对象正确初始化
+      this.ensureMapsInitialized()
+
       const index = this.nodes.findIndex(n => n.id === id)
       if (index > -1) {
         this.nodes.splice(index, 1)
@@ -144,6 +150,9 @@ export const usePipelineStore = defineStore('pipeline', {
     },
 
     addEdge(edge: Edge) {
+      // 确保 Map 对象正确初始化
+      this.ensureMapsInitialized()
+
       // 检查是否已存在相同的边
       const exists = this.edges.some(
         e => e.source === edge.source && e.target === edge.target
@@ -158,6 +167,9 @@ export const usePipelineStore = defineStore('pipeline', {
     },
 
     removeEdge(id: string) {
+      // 确保 Map 对象正确初始化
+      this.ensureMapsInitialized()
+
       const index = this.edges.findIndex(e => e.id === id)
       if (index > -1) {
         const edge = this.edges[index]
@@ -314,6 +326,9 @@ export const usePipelineStore = defineStore('pipeline', {
 
     // 清空所有数据
     clear() {
+      // 确保 Map 对象正确初始化
+      this.ensureMapsInitialized()
+
       this.currentPipeline = null
       this.nodes = []
       this.edges = []
@@ -327,6 +342,9 @@ export const usePipelineStore = defineStore('pipeline', {
     // 执行Pipeline - 计算所有节点的数据
     async executePipeline(): Promise<{ success: boolean; message: string; results?: Map<string, any[]> }> {
       try {
+        // 确保 Map 对象正确初始化
+        this.ensureMapsInitialized()
+
         if (this.nodes.length === 0) {
           return { success: false, message: 'Pipeline is empty' }
         }
