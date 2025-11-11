@@ -599,6 +599,42 @@
       @select="handleContextMenuSelect"
       @close="contextMenuVisible = false"
     />
+
+    <!-- Rename Node Modal -->
+    <a-modal
+      v-model:open="renameModalVisible"
+      title="Rename Node"
+      :width="480"
+      @ok="handleRenameConfirm"
+      @cancel="handleRenameCancel"
+      :okButtonProps="{ disabled: !isRenameValid }"
+    >
+      <div class="rename-modal-content">
+        <div class="rename-form-item">
+          <label class="rename-label">Node Name</label>
+          <a-input
+            ref="renameInputRef"
+            v-model:value="renameNodeName"
+            placeholder="Enter node name"
+            :maxlength="100"
+            @pressEnter="handleRenameConfirm"
+            @keydown.esc="handleRenameCancel"
+          />
+          <div class="rename-hint" v-if="renameNodeName.trim().length > 0">
+            {{ renameNodeName.trim().length }} / 100 characters
+          </div>
+          <div class="rename-error" v-if="renameNodeName.trim().length === 0">
+            Node name cannot be empty
+          </div>
+        </div>
+        <div class="rename-info">
+          <InfoCircleOutlined style="margin-right: 8px; color: #1570EF;" />
+          <span style="font-size: 13px; color: #667085;">
+            This name will be displayed on the canvas and in the pipeline editor.
+          </span>
+        </div>
+      </div>
+    </a-modal>
   </div>
 </template>
 
@@ -756,6 +792,17 @@ const contextMenuX = ref(0)
 const contextMenuY = ref(0)
 const contextMenuItems = ref<any[]>([])
 const contextMenuTarget = ref<any>(null)
+
+// Rename modal
+const renameModalVisible = ref(false)
+const renameNodeName = ref('')
+const renameTargetNode = ref<Node | null>(null)
+const renameInputRef = ref<any>(null)
+
+// Validate rename input
+const isRenameValid = computed(() => {
+  return renameNodeName.value.trim().length > 0
+})
 
 // Undo/Redo
 const canUndo = ref(false)
@@ -1089,13 +1136,47 @@ function duplicateNode(node: Node) {
   message.success('Node duplicated')
 }
 
-// Rename node
+// Rename node - Open modal
 function renameNode(node: Node) {
-  const newName = prompt('Enter new name:', node.name)
-  if (newName && newName !== node.name) {
-    pipelineStore.updateNode(node.id, { name: newName })
-    message.success('Node renamed')
+  renameTargetNode.value = node
+  renameNodeName.value = node.name
+  renameModalVisible.value = true
+
+  // Focus input after modal opens
+  setTimeout(() => {
+    if (renameInputRef.value) {
+      renameInputRef.value.focus()
+      // Select all text for easy editing
+      renameInputRef.value.select()
+    }
+  }, 100)
+}
+
+// Handle rename confirm
+function handleRenameConfirm() {
+  if (!isRenameValid.value || !renameTargetNode.value) {
+    return
   }
+
+  const newName = renameNodeName.value.trim()
+  const oldName = renameTargetNode.value.name
+
+  if (newName !== oldName) {
+    pipelineStore.updateNode(renameTargetNode.value.id, { name: newName })
+    message.success(`Node renamed from "${oldName}" to "${newName}"`)
+  }
+
+  // Close modal
+  renameModalVisible.value = false
+  renameTargetNode.value = null
+  renameNodeName.value = ''
+}
+
+// Handle rename cancel
+function handleRenameCancel() {
+  renameModalVisible.value = false
+  renameTargetNode.value = null
+  renameNodeName.value = ''
 }
 
 // Get node type label
@@ -2545,6 +2626,44 @@ onUnmounted(() => {
         margin-top: 12px;
       }
     }
+  }
+}
+
+// ==================== Rename Modal ====================
+.rename-modal-content {
+  padding: 12px 0;
+
+  .rename-form-item {
+    margin-bottom: 16px;
+
+    .rename-label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: 500;
+      color: #212121;
+    }
+
+    .rename-hint {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #98A2B3;
+    }
+
+    .rename-error {
+      margin-top: 6px;
+      font-size: 12px;
+      color: #F5222D;
+    }
+  }
+
+  .rename-info {
+    display: flex;
+    align-items: flex-start;
+    padding: 12px;
+    background: #F0F7FF;
+    border: 1px solid #D4E8FF;
+    border-radius: 6px;
   }
 }
 </style>
