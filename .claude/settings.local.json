@@ -8,7 +8,9 @@
       "Bash(git commit:*)",
       "WebFetch(domain:www.palantir.com)",
       "WebSearch",
-      "Bash(timeout 5 bash:*)"
+      "Bash(timeout 5 bash:*)",
+      "Bash(pkill:*)",
+      "Bash(timeout 10 bash:*)"
     ],
     "deny": [],
     "ask": []

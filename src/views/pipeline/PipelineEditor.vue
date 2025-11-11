@@ -105,14 +105,29 @@
 
       <div class="toolbar-section">
         <span class="toolbar-label">Select</span>
+        <a-button class="toolbar-icon-btn" @click="handleSelectAll" title="Select All (Ctrl+A)">
+          <SelectOutlined />
+        </a-button>
+        <a-button class="toolbar-icon-btn" @click="handleClearSelection" title="Clear Selection (Esc)">
+          <CloseCircleOutlined />
+        </a-button>
       </div>
 
       <div class="toolbar-section">
         <span class="toolbar-label">Remove</span>
+        <a-button class="toolbar-icon-btn" @click="handleDeleteSelected" :disabled="!hasSelection" title="Delete Selected (Delete)">
+          <DeleteOutlined />
+        </a-button>
       </div>
 
       <div class="toolbar-section">
         <span class="toolbar-label">Layout</span>
+        <a-button class="toolbar-icon-btn" @click="handleAutoLayout" title="Auto Layout">
+          <NodeIndexOutlined />
+        </a-button>
+        <a-button class="toolbar-icon-btn" @click="handleZoom('fit')" title="Fit to Screen">
+          <CompressOutlined />
+        </a-button>
       </div>
 
       <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
@@ -126,20 +141,15 @@
           </a-button>
           <template #overlay>
             <a-menu @click="handleAddData" class="add-data-menu">
-              <a-menu-item key="products">
-                <DatabaseOutlined style="margin-right: 8px;" />
-                <span>Products</span>
-                <span style="color: #98A2B3; margin-left: 8px;">(12 rows)</span>
-              </a-menu-item>
-              <a-menu-item key="customers">
-                <DatabaseOutlined style="margin-right: 8px;" />
-                <span>Customers</span>
-                <span style="color: #98A2B3; margin-left: 8px;">(10 rows)</span>
-              </a-menu-item>
-              <a-menu-item key="transactions">
-                <DatabaseOutlined style="margin-right: 8px;" />
-                <span>Transactions</span>
-                <span style="color: #98A2B3; margin-left: 8px;">(15 rows)</span>
+              <a-menu-item
+                v-for="dataset in availableDatasets"
+                :key="dataset.id"
+              >
+                <DatabaseOutlined style="margin-right: 8px; color: #1570EF;" />
+                <span style="font-weight: 500;">{{ dataset.displayName }}</span>
+                <span style="color: #98A2B3; margin-left: 8px; font-size: 12px;">
+                  ({{ dataset.rowCount }} rows · {{ dataset.columns.length }} columns)
+                </span>
               </a-menu-item>
             </a-menu>
           </template>
@@ -630,7 +640,8 @@ import {
   FontSizeOutlined,
   NumberOutlined,
   CalendarOutlined,
-  CheckCircleOutlined
+  CheckCircleOutlined,
+  CloseCircleOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -697,6 +708,16 @@ const filteredColumns = computed(() => {
     col.name.toLowerCase().includes(searchLower) ||
     col.type.toLowerCase().includes(searchLower)
   )
+})
+
+// Check if any nodes are selected
+const hasSelection = computed(() => {
+  return pipelineStore.selectedNodes.length > 0
+})
+
+// Available datasets for the Add Data menu
+const availableDatasets = computed(() => {
+  return getAllDatasets()
 })
 
 // Outputs list
@@ -1250,6 +1271,66 @@ function handleAutoLayout() {
     console.error('Auto layout error:', error)
     message.error('Failed to apply auto layout')
   }
+}
+
+// Select all nodes
+function handleSelectAll() {
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  const allNodes = graph.getNodes()
+  if (allNodes.length === 0) {
+    message.info('No nodes to select')
+    return
+  }
+
+  graph.select(allNodes)
+  message.success(`Selected ${allNodes.length} node(s)`)
+}
+
+// Clear selection
+function handleClearSelection() {
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  if (!hasSelection.value) {
+    message.info('No nodes selected')
+    return
+  }
+
+  graph.cleanSelection()
+  pipelineStore.setSelectedNodes([])
+  message.success('Selection cleared')
+}
+
+// Delete selected nodes
+function handleDeleteSelected() {
+  const graph = canvasRef.value?.getGraph()
+  if (!graph) return
+
+  const selectedIds = pipelineStore.selectedNodes
+  if (selectedIds.length === 0) {
+    message.warning('No nodes selected')
+    return
+  }
+
+  // Confirm deletion
+  const nodeNames = selectedIds.map(id => {
+    const node = nodes.value.find(n => n.id === id)
+    return node?.name || id
+  }).join(', ')
+
+  // Delete nodes
+  selectedIds.forEach(id => {
+    const cell = graph.getCellById(id)
+    if (cell) {
+      cell.remove()
+    }
+    pipelineStore.removeNode(id)
+  })
+
+  pipelineStore.setSelectedNodes([])
+  message.success(`Deleted ${selectedIds.length} node(s): ${nodeNames}`)
 }
 
 // Save
