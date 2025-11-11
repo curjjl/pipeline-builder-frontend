@@ -38,6 +38,8 @@ const emit = defineEmits<{
   'edge:added': [edge: Edge]
   'edge:removed': [edge: Edge]
   'node:moved': [payload: { node: Node; position: { x: number; y: number } }]
+  'nodes:copied': [count: number]
+  'nodes:pasted': [count: number]
 }>()
 
 const containerRef = ref<HTMLDivElement>()
@@ -208,8 +210,12 @@ const initGraph = () => {
         multiple: true,
         rubberband: true,
         movable: true,
-        showNodeSelectionBox: false,
-        modifiers: 'shift'
+        showNodeSelectionBox: true,
+        modifiers: 'shift',
+        rubberEdge: true,
+        rubberNode: true,
+        strict: false,
+        selectCellOnMoved: true
       })
     )
     .use(
@@ -542,6 +548,12 @@ const bindEvents = () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
       graph!.copy(cells)
+
+      // 触发复制事件
+      const nodeCount = cells.filter(cell => cell.isNode()).length
+      if (nodeCount > 0) {
+        emit('nodes:copied', nodeCount)
+      }
     }
     return false
   })
@@ -549,9 +561,23 @@ const bindEvents = () => {
   // 粘贴
   graph.bindKey(['ctrl+v', 'meta+v'], () => {
     if (!graph!.isClipboardEmpty()) {
-      const cells = graph!.paste({ offset: 32 })
+      const cells = graph!.paste({ offset: 40 })
       graph!.cleanSelection()
       graph!.select(cells)
+
+      // 触发粘贴事件
+      const nodeCount = cells.filter(cell => cell.isNode()).length
+      if (nodeCount > 0) {
+        emit('nodes:pasted', nodeCount)
+      }
+
+      // 为粘贴的节点更新数据和发送事件
+      cells.filter(cell => cell.isNode()).forEach(node => {
+        const nodeData = node.getData()
+        if (nodeData) {
+          emit('node:added', nodeData)
+        }
+      })
     }
     return false
   })

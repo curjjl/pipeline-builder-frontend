@@ -196,6 +196,8 @@
           @edge:added="handleEdgeAdded"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
+          @nodes:copied="handleNodesCopied"
+          @nodes:pasted="handleNodesPasted"
         />
 
         <!-- Zoom and Layout controls -->
@@ -913,6 +915,16 @@ function handleEdgeContextMenu({ edge, event }: { edge: Edge; event: MouseEvent 
 function handleCanvasClick() {
   pipelineStore.setSelectedNodes([])
   contextMenuVisible.value = false
+}
+
+// Nodes copied
+function handleNodesCopied(count: number) {
+  message.success(`Copied ${count} node${count > 1 ? 's' : ''}`)
+}
+
+// Nodes pasted
+function handleNodesPasted(count: number) {
+  message.success(`Pasted ${count} node${count > 1 ? 's' : ''}`)
 }
 
 // Context menu select
