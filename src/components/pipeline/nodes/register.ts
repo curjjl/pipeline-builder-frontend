@@ -128,15 +128,15 @@ export function registerDatasetNode() {
 }
 
 /**
- * Register Transform Node - Palantir Style
+ * Register Transform Node - Palantir Official Style
  */
 export function registerTransformNode() {
   Graph.registerNode(
     'transform-node',
     {
       inherit: 'rect',
-      width: 200,
-      height: 68,
+      width: 240,
+      height: 72,
       markup: [
         {
           tagName: 'rect',
@@ -144,10 +144,6 @@ export function registerTransformNode() {
         },
         {
           tagName: 'rect',
-          selector: 'left-indicator'
-        },
-        {
-          tagName: 'circle',
           selector: 'icon-bg'
         },
         {
@@ -160,87 +156,68 @@ export function registerTransformNode() {
         },
         {
           tagName: 'text',
-          selector: 'transform-type'
-        },
-        {
-          tagName: 'circle',
-          selector: 'status-indicator'
+          selector: 'meta'
         }
       ],
       attrs: {
         body: {
           strokeWidth: 1,
-          stroke: '#E4E7EB',
+          stroke: '#D0D5DD',
           fill: '#FFFFFF',
-          rx: 8,
-          ry: 8,
+          refWidth: 1,
+          refHeight: 1,
+          rx: 6,
+          ry: 6,
           filter: {
             name: 'dropShadow',
             args: {
               dx: 0,
-              dy: 2,
-              blur: 8,
-              color: 'rgba(147, 51, 230, 0.12)'
+              dy: 1,
+              blur: 4,
+              color: 'rgba(16, 24, 40, 0.1)'
             }
           }
         },
-        'left-indicator': {
-          width: 4,
-          height: 68,
-          x: 0,
-          y: 0,
-          fill: '#9334E6',
-          rx: 8
-        },
         'icon-bg': {
-          cx: 22,
-          cy: 22,
-          r: 10,
-          fill: '#F3E8FF',
-          stroke: '#E9D5FF',
-          strokeWidth: 1
+          x: 12,
+          y: 12,
+          width: 32,
+          height: 32,
+          fill: '#EFF8FF',
+          rx: 4,
+          ry: 4
         },
         icon: {
-          x: 16,
-          y: 16,
-          width: 12,
-          height: 12,
-          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMTIgMkw0IDdWMTJDNCA0IDE4Ljg5IDIxIDIwLjcgOEwyMiA3TDEyIDJaIiBzdHJva2U9IiM5MzM0RTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTkgMTJMMTEgMTRMMTUgMTAiIHN0cm9rZT0iIzkzMzRFNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'
+          'xlink:href': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMjIgM0gyQzAuOSAzIDAgMy45IDAgNVYxOUMwIDIwLjEgMC45IDIxIDIgMjFIMjJDMjMuMSAyMSAyNCAyMC4xIDI0IDE5VjVDMjQgMy45IDIzLjEgMyAyMiAzWiIgc3Ryb2tlPSIjMTU3MEVGIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8bGluZSB4MT0iMyIgeTE9IjkiIHgyPSIyMSIgeTI9IjkiIHN0cm9rZT0iIzE1NzBFRiIgc3Ryb2tlLXdpZHRoPSIyIi8+CiAgPGxpbmUgeDE9IjMiIHkxPSIxNSIgeDI9IjIxIiB5Mj0iMTUiIHN0cm9rZT0iIzE1NzBFRiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjwvc3ZnPg==',
+          width: 20,
+          height: 20,
+          x: 18,
+          y: 18
         },
         label: {
-          x: 40,
-          y: 18,
+          text: 'Transform',
+          refX: 52,
+          refY: 22,
+          fill: '#101828',
           fontSize: 14,
           fontWeight: 600,
-          fill: '#101828',
-          text: 'Transform',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
-        'transform-type': {
-          x: 40,
-          y: 38,
-          fontSize: 12,
-          fill: '#9334E6',
-          fontWeight: 500,
+        meta: {
           text: 'Not configured',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          refX: 52,
+          refY: 46,
+          fill: '#667085',
+          fontSize: 12,
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
-        },
-        'status-indicator': {
-          cx: 40,
-          cy: 54,
-          r: 3,
-          fill: '#98A2B3',
-          opacity: 0
         }
       },
       ports: {
         groups: {
           in: {
-            position: 'top',
+            position: { name: 'left', args: { y: 34 } },
             attrs: {
               circle: {
                 r: 6,
@@ -253,7 +230,7 @@ export function registerTransformNode() {
             }
           },
           out: {
-            position: 'bottom',
+            position: { name: 'right', args: { y: 34 } },
             attrs: {
               circle: {
                 r: 6,
@@ -365,7 +342,7 @@ export function registerJoinNode() {
       ports: {
         groups: {
           in: {
-            position: 'top',
+            position: 'left',
             attrs: {
               circle: {
                 r: 6,
@@ -378,7 +355,7 @@ export function registerJoinNode() {
             }
           },
           out: {
-            position: 'bottom',
+            position: { name: 'right', args: { y: 32 } },
             attrs: {
               circle: {
                 r: 6,
@@ -392,8 +369,8 @@ export function registerJoinNode() {
           }
         },
         items: [
-          { group: 'in', id: 'port-in-1', args: { x: '30%' } },
-          { group: 'in', id: 'port-in-2', args: { x: '70%' } },
+          { group: 'in', id: 'port-in-1', args: { y: '35%' } },
+          { group: 'in', id: 'port-in-2', args: { y: '65%' } },
           { group: 'out', id: 'port-out' }
         ]
       }
@@ -479,7 +456,7 @@ export function registerOutputNode() {
       ports: {
         groups: {
           in: {
-            position: 'top',
+            position: { name: 'left', args: { y: 32 } },
             attrs: {
               circle: {
                 r: 6,
