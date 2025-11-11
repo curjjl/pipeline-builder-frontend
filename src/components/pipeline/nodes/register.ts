@@ -128,15 +128,15 @@ export function registerDatasetNode() {
 }
 
 /**
- * Register Transform Node
+ * Register Transform Node - Palantir Style
  */
 export function registerTransformNode() {
   Graph.registerNode(
     'transform-node',
     {
       inherit: 'rect',
-      width: 220,
-      height: 56,
+      width: 200,
+      height: 68,
       markup: [
         {
           tagName: 'rect',
@@ -144,7 +144,11 @@ export function registerTransformNode() {
         },
         {
           tagName: 'rect',
-          selector: 'left-bar'
+          selector: 'left-indicator'
+        },
+        {
+          tagName: 'circle',
+          selector: 'icon-bg'
         },
         {
           tagName: 'image',
@@ -156,61 +160,81 @@ export function registerTransformNode() {
         },
         {
           tagName: 'text',
-          selector: 'meta'
+          selector: 'transform-type'
+        },
+        {
+          tagName: 'circle',
+          selector: 'status-indicator'
         }
       ],
       attrs: {
         body: {
           strokeWidth: 1,
-          stroke: '#D0D5DD',
+          stroke: '#E4E7EB',
           fill: '#FFFFFF',
-          rx: 6,
-          ry: 6,
+          rx: 8,
+          ry: 8,
           filter: {
             name: 'dropShadow',
             args: {
               dx: 0,
-              dy: 1,
-              blur: 3,
-              color: 'rgba(0, 0, 0, 0.1)'
+              dy: 2,
+              blur: 8,
+              color: 'rgba(147, 51, 230, 0.12)'
             }
           }
         },
-        'left-bar': {
-          width: 3,
-          height: 56,
+        'left-indicator': {
+          width: 4,
+          height: 68,
           x: 0,
           y: 0,
           fill: '#9334E6',
-          rx: 6
+          rx: 8
+        },
+        'icon-bg': {
+          cx: 22,
+          cy: 22,
+          r: 10,
+          fill: '#F3E8FF',
+          stroke: '#E9D5FF',
+          strokeWidth: 1
         },
         icon: {
-          x: 15,
-          y: 18,
-          width: 18,
-          height: 18,
-          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNNyA4TDMgMTJMNyAxNiIgc3Ryb2tlPSIjOTMzNEU2IiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIvPgogIDxwYXRoIGQ9Ik0xNyA4TDIxIDEyTDE3IDE2IiBzdHJva2U9IiM5MzM0RTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIi8+CiAgPHBhdGggZD0iTTE0IDRMMTAgMjAiIHN0cm9rZT0iIzkzMzRFNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'
+          x: 16,
+          y: 16,
+          width: 12,
+          height: 12,
+          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTIiIGhlaWdodD0iMTIiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMTIgMkw0IDdWMTJDNCA0IDE4Ljg5IDIxIDIwLjcgOEwyMiA3TDEyIDJaIiBzdHJva2U9IiM5MzM0RTYiIHN0cm9rZS13aWR0aD0iMiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIiBzdHJva2UtbGluZWpvaW49InJvdW5kIiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTkgMTJMMTEgMTRMMTUgMTAiIHN0cm9rZT0iIzkzMzRFNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiIHN0cm9rZS1saW5lam9pbj0icm91bmQiLz4KPC9zdmc+'
         },
         label: {
           x: 40,
-          y: 21,
-          fontSize: 13,
-          fontWeight: 500,
-          fill: '#212121',
+          y: 18,
+          fontSize: 14,
+          fontWeight: 600,
+          fill: '#101828',
           text: 'Transform',
           textAnchor: 'start',
           textVerticalAnchor: 'middle',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
-        meta: {
+        'transform-type': {
           x: 40,
-          y: 36,
-          fontSize: 11,
-          fill: '#5F6368',
-          text: '0 transformations',
+          y: 38,
+          fontSize: 12,
+          fill: '#9334E6',
+          fontWeight: 500,
+          text: 'Not configured',
           textAnchor: 'start',
           textVerticalAnchor: 'middle',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+        },
+        'status-indicator': {
+          cx: 40,
+          cy: 54,
+          r: 3,
+          fill: '#98A2B3',
+          opacity: 0
         }
       },
       ports: {

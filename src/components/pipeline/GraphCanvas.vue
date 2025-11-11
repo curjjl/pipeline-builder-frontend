@@ -655,10 +655,20 @@ const addNode = (nodeData: Node): X6Node | null => {
       metaText = `${columnCount} columns`
     }
   } else if (nodeData.type === 'transform') {
-    const transformCount = nodeData.data?.transformCount || 0
-    metaText = transformCount > 0
-      ? `${transformCount} transformations`
-      : `${nodeData.data?.columnCount || 0} columns`
+    // Display transform type if configured
+    if (nodeData.data?.transformConfig?.type) {
+      const typeMap: Record<string, string> = {
+        'filter': 'Filter',
+        'select': 'Select columns',
+        'clean': 'Clean',
+        'rename': 'Rename',
+        'aggregate': 'Aggregate',
+        'sort': 'Sort'
+      }
+      metaText = typeMap[nodeData.data.transformConfig.type] || 'Transform'
+    } else {
+      metaText = 'Not configured'
+    }
   } else if (nodeData.type === 'join') {
     metaText = nodeData.data?.joinConfig?.type ? `${nodeData.data.joinConfig.type} join` : 'Inner join'
   } else if (nodeData.type === 'output') {
@@ -675,7 +685,13 @@ const addNode = (nodeData: Node): X6Node | null => {
 
   // Update text content after node creation to avoid overriding default attrs
   node.attr('label/text', nodeData.name)
-  node.attr('meta/text', metaText)
+
+  // Use different attribute names based on node type
+  if (nodeData.type === 'transform') {
+    node.attr('transform-type/text', metaText)
+  } else {
+    node.attr('meta/text', metaText)
+  }
 
   return node
 }
@@ -781,16 +797,32 @@ const updateNodeData = (id: string, data: Partial<Node>) => {
           metaText = `${columnCount} columns`
         }
       } else if (updatedData.type === 'transform') {
-        const transformCount = updatedData.data?.transformCount || 0
-        metaText = transformCount > 0
-          ? `${transformCount} transformations`
-          : `${updatedData.data?.columnCount || 0} columns`
+        // Display transform type if configured
+        if (updatedData.data?.transformConfig?.type) {
+          const typeMap: Record<string, string> = {
+            'filter': 'Filter',
+            'select': 'Select columns',
+            'clean': 'Clean',
+            'rename': 'Rename',
+            'aggregate': 'Aggregate',
+            'sort': 'Sort'
+          }
+          metaText = typeMap[updatedData.data.transformConfig.type] || 'Transform'
+        } else {
+          metaText = 'Not configured'
+        }
       } else if (updatedData.type === 'join') {
         metaText = updatedData.data?.joinConfig?.type ? `${updatedData.data.joinConfig.type} join` : 'Inner join'
       } else if (updatedData.type === 'output') {
         metaText = updatedData.data?.outputName || 'Save to dataset'
       }
-      node.attr('meta/text', metaText)
+
+      // Use different attribute names based on node type
+      if (updatedData.type === 'transform') {
+        node.attr('transform-type/text', metaText)
+      } else {
+        node.attr('meta/text', metaText)
+      }
     }
   }
 }
