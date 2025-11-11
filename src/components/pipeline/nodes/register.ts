@@ -104,39 +104,21 @@ export function registerDatasetNode() {
       },
       ports: {
         groups: {
-          in: {
-            position: { name: 'left', args: { y: 36 } },
-            attrs: {
-              circle: {
-                r: 4,
-                magnet: true,
-                stroke: '#98A2B3',
-                strokeWidth: 1.5,
-                fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden'
-                }
-              }
-            }
-          },
           out: {
             position: { name: 'right', args: { y: 36 } },
             attrs: {
               circle: {
-                r: 4,
+                r: 6,
                 magnet: true,
-                stroke: '#98A2B3',
-                strokeWidth: 1.5,
+                stroke: '#5F6368',
+                strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden'
-                }
+                opacity: 0
               }
             }
           }
         },
         items: [
-          { group: 'in', id: 'port-in' },
           { group: 'out', id: 'port-out' }
         ]
       }
@@ -237,14 +219,12 @@ export function registerTransformNode() {
             position: 'top',
             attrs: {
               circle: {
-                r: 5,
+                r: 6,
                 magnet: true,
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden' // 默认隐藏
-                }
+                opacity: 0
               }
             }
           },
@@ -252,14 +232,12 @@ export function registerTransformNode() {
             position: 'bottom',
             attrs: {
               circle: {
-                r: 5,
+                r: 6,
                 magnet: true,
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden' // 默认隐藏
-                }
+                opacity: 0
               }
             }
           }
@@ -366,14 +344,12 @@ export function registerJoinNode() {
             position: 'top',
             attrs: {
               circle: {
-                r: 5,
+                r: 6,
                 magnet: true,
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden'
-                }
+                opacity: 0
               }
             }
           },
@@ -381,14 +357,12 @@ export function registerJoinNode() {
             position: 'bottom',
             attrs: {
               circle: {
-                r: 5,
+                r: 6,
                 magnet: true,
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden'
-                }
+                opacity: 0
               }
             }
           }
@@ -484,14 +458,12 @@ export function registerOutputNode() {
             position: 'top',
             attrs: {
               circle: {
-                r: 5,
+                r: 6,
                 magnet: true,
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                style: {
-                  visibility: 'hidden'
-                }
+                opacity: 0
               }
             }
           }

@@ -324,9 +324,10 @@ const bindEvents = () => {
     // 显示端口并放大
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible')
-      node.setPortProp(port.id!, 'attrs/circle/r', 5)
+      node.setPortProp(port.id!, 'attrs/circle/opacity', 1)
+      node.setPortProp(port.id!, 'attrs/circle/r', 7)
       node.setPortProp(port.id!, 'attrs/circle/stroke', '#2D6EED')
+      node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2.5)
     })
 
     // 添加边框工具
@@ -356,9 +357,10 @@ const bindEvents = () => {
       // 隐藏端口
       const ports = node.getPorts()
       ports.forEach(port => {
-        node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden')
-        node.setPortProp(port.id!, 'attrs/circle/r', 4)
-        node.setPortProp(port.id!, 'attrs/circle/stroke', '#98A2B3')
+        node.setPortProp(port.id!, 'attrs/circle/opacity', 0)
+        node.setPortProp(port.id!, 'attrs/circle/r', 6)
+        node.setPortProp(port.id!, 'attrs/circle/stroke', '#5F6368')
+        node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2)
       })
       node.removeTools()
     }
@@ -402,8 +404,9 @@ const bindEvents = () => {
     // 选中时保持端口可见
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'visible')
+      node.setPortProp(port.id!, 'attrs/circle/opacity', 1)
       node.setPortProp(port.id!, 'attrs/circle/stroke', '#2D6EED')
+      node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2.5)
     })
   })
 
@@ -415,9 +418,42 @@ const bindEvents = () => {
     // 取消选中时隐藏端口
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/style/visibility', 'hidden')
-      node.setPortProp(port.id!, 'attrs/circle/stroke', '#98A2B3')
+      node.setPortProp(port.id!, 'attrs/circle/opacity', 0)
+      node.setPortProp(port.id!, 'attrs/circle/stroke', '#5F6368')
+      node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2)
     })
+  })
+
+  // 端口悬停高亮效果
+  graph.on('node:port:mouseenter', ({ node, port }) => {
+    // 高亮悬停的端口
+    node.setPortProp(port, 'attrs/circle/opacity', 1)
+    node.setPortProp(port, 'attrs/circle/r', 8)
+    node.setPortProp(port, 'attrs/circle/stroke', '#4285F4')
+    node.setPortProp(port, 'attrs/circle/strokeWidth', 3)
+    node.setPortProp(port, 'attrs/circle/fill', '#E8F0FE')
+  })
+
+  graph.on('node:port:mouseleave', ({ node, port }) => {
+    // 检查节点是否被选中或鼠标是否在节点上
+    const selectedCells = graph!.getSelectedCells()
+    const isSelected = selectedCells.some(cell => cell.id === node.id)
+
+    // 如果节点被选中或鼠标仍在节点上，保持端口可见但不放大
+    if (isSelected) {
+      node.setPortProp(port, 'attrs/circle/opacity', 1)
+      node.setPortProp(port, 'attrs/circle/r', 7)
+      node.setPortProp(port, 'attrs/circle/stroke', '#2D6EED')
+      node.setPortProp(port, 'attrs/circle/strokeWidth', 2.5)
+      node.setPortProp(port, 'attrs/circle/fill', '#FFFFFF')
+    } else {
+      // 否则恢复默认状态
+      node.setPortProp(port, 'attrs/circle/opacity', 0)
+      node.setPortProp(port, 'attrs/circle/r', 6)
+      node.setPortProp(port, 'attrs/circle/stroke', '#5F6368')
+      node.setPortProp(port, 'attrs/circle/strokeWidth', 2)
+      node.setPortProp(port, 'attrs/circle/fill', '#FFFFFF')
+    }
   })
 
   // 边悬停效果
