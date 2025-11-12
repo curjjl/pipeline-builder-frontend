@@ -25,7 +25,9 @@
       "Bash(netstat:*)",
       "Bash(findstr:*)",
       "Bash(timeout 3 bash:*)",
-      "Bash(tasklist:*)"
+      "Bash(tasklist:*)",
+      "mcp__chrome-devtools__new_page",
+      "mcp__chrome-devtools__select_page"
     ],
     "deny": [],
     "ask": []

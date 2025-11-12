@@ -254,15 +254,15 @@ export function registerTransformNode() {
 }
 
 /**
- * Register Join Node
+ * Register Join Node - Palantir Official Style
  */
 export function registerJoinNode() {
   Graph.registerNode(
     'join-node',
     {
       inherit: 'rect',
-      width: 200,
-      height: 64,
+      width: 240,
+      height: 72,
       markup: [
         {
           tagName: 'rect',
@@ -270,7 +270,7 @@ export function registerJoinNode() {
         },
         {
           tagName: 'rect',
-          selector: 'left-bar'
+          selector: 'icon-bg'
         },
         {
           tagName: 'image',
@@ -290,6 +290,8 @@ export function registerJoinNode() {
           strokeWidth: 1,
           stroke: '#D0D5DD',
           fill: '#FFFFFF',
+          refWidth: 1,
+          refHeight: 1,
           rx: 6,
           ry: 6,
           filter: {
@@ -297,45 +299,44 @@ export function registerJoinNode() {
             args: {
               dx: 0,
               dy: 1,
-              blur: 3,
-              color: 'rgba(0, 0, 0, 0.1)'
+              blur: 4,
+              color: 'rgba(16, 24, 40, 0.1)'
             }
           }
         },
-        'left-bar': {
-          width: 3,
-          height: 64,
-          x: 0,
-          y: 0,
-          fill: '#F59E0B',
-          rx: 6
+        'icon-bg': {
+          x: 12,
+          y: 12,
+          width: 32,
+          height: 32,
+          fill: '#FEF3C7',
+          rx: 4,
+          ry: 4
         },
         icon: {
-          x: 15,
-          y: 22,
-          width: 18,
-          height: 18,
-          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTgiIGhlaWdodD0iMTgiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8Y2lyY2xlIGN4PSI4IiBjeT0iOCIgcj0iNCIgc3Ryb2tlPSIjRjU5RTBCIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBzdHJva2U9IiNGNTlFMEIiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPgogIDxsaW5lIHgxPSIxMSIgeTE9IjExIiB4Mj0iMTMiIHkyPSIxMyIgc3Ryb2tlPSIjRjU5RTBCIiBzdHJva2Utd2lkdGg9IjIiLz4KPC9zdmc+'
+          'xlink:href': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8Y2lyY2xlIGN4PSI4IiBjeT0iOCIgcj0iNCIgc3Ryb2tlPSIjRjU5RTBCIiBzdHJva2Utd2lkdGg9IjIiIGZpbGw9Im5vbmUiLz4KICA8Y2lyY2xlIGN4PSIxNiIgY3k9IjE2IiByPSI0IiBzdHJva2U9IiNGNTlFMEIiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPgogIDxsaW5lIHgxPSIxMSIgeTE9IjExIiB4Mj0iMTMiIHkyPSIxMyIgc3Ryb2tlPSIjRjU5RTBCIiBzdHJva2Utd2lkdGg9IjIiLz4KPC9zdmc+',
+          width: 20,
+          height: 20,
+          x: 18,
+          y: 18
         },
         label: {
-          x: 40,
-          y: 24,
-          fontSize: 13,
-          fontWeight: 500,
-          fill: '#212121',
           text: 'Join',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          refX: 52,
+          refY: 22,
+          fill: '#101828',
+          fontSize: 14,
+          fontWeight: 600,
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
         meta: {
-          x: 40,
-          y: 40,
-          fontSize: 11,
-          fill: '#5F6368',
-          text: 'Inner Join',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          text: 'Inner join',
+          refX: 52,
+          refY: 46,
+          fill: '#667085',
+          fontSize: 12,
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         }
       },
@@ -355,7 +356,7 @@ export function registerJoinNode() {
             }
           },
           out: {
-            position: { name: 'right', args: { y: 32 } },
+            position: { name: 'right', args: { y: 36 } },
             attrs: {
               circle: {
                 r: 6,
