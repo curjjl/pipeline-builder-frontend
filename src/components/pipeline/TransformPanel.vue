@@ -142,6 +142,22 @@
           @cancel="handleCancel"
         />
 
+        <!-- Clean String 转换 -->
+        <CleanStringTransform
+          v-else-if="selectedTransform === 'cleanString'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- Title Case 转换 -->
+        <TitleCaseTransform
+          v-else-if="selectedTransform === 'titleCase'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
         <!-- 通用转换配置 -->
         <GenericTransform
           v-else
@@ -168,6 +184,8 @@ import RemoveColumnsTransform from './transforms/RemoveColumnsTransform.vue'
 import TrimTransform from './transforms/TrimTransform.vue'
 import ReplaceTransform from './transforms/ReplaceTransform.vue'
 import SplitColumnsTransform from './transforms/SplitColumnsTransform.vue'
+import CleanStringTransform from './transforms/CleanStringTransform.vue'
+import TitleCaseTransform from './transforms/TitleCaseTransform.vue'
 import GenericTransform from './transforms/GenericTransform.vue'
 import type { Node } from '@/stores/modules/pipeline'
 
@@ -263,6 +281,18 @@ const transforms = [
     name: 'Split column',
     category: ['all', 'data-prep'],
     description: 'Split a column into multiple columns based on delimiter.'
+  },
+  {
+    key: 'cleanString',
+    name: 'Clean string',
+    category: ['all', 'popular', 'data-prep'],
+    description: 'Clean and normalize string values by removing whitespace and converting empty strings.'
+  },
+  {
+    key: 'titleCase',
+    name: 'Title case',
+    category: ['all', 'data-prep'],
+    description: 'Convert text to title case where the first letter of each word is capitalized.'
   },
   {
     key: 'distinct',

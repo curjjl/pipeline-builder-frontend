@@ -274,6 +274,14 @@
             @apply="handleApplyTransform"
           />
 
+          <!-- Join Config Panel -->
+          <JoinPanel
+            v-else-if="showJoinConfig && selectedJoinNode"
+            :node="selectedJoinNode"
+            @close="handleCloseJoinConfig"
+            @apply="handleApplyJoin"
+          />
+
           <!-- Pipeline outputs section -->
           <div v-else class="pipeline-outputs-section">
             <div class="panel-section">
@@ -742,6 +750,7 @@ import ContextMenu from '@/components/common/ContextMenu.vue'
 import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
 import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue'
+import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import { useRouter } from 'vue-router'
@@ -823,6 +832,10 @@ const showGrid = ref(false)
 const showTransformConfig = ref(false)
 const selectedTransformNode = ref<Node | null>(null)
 
+// Join config panel
+const showJoinConfig = ref(false)
+const selectedJoinNode = ref<Node | null>(null)
+
 // Debug: Watch transform config state
 watch(showTransformConfig, (newVal) => {
   console.log('showTransformConfig changed:', newVal)
@@ -830,6 +843,15 @@ watch(showTransformConfig, (newVal) => {
 
 watch(selectedTransformNode, (newVal) => {
   console.log('selectedTransformNode changed:', newVal?.name)
+})
+
+// Debug: Watch join config state
+watch(showJoinConfig, (newVal) => {
+  console.log('showJoinConfig changed:', newVal)
+})
+
+watch(selectedJoinNode, (newVal) => {
+  console.log('selectedJoinNode changed:', newVal?.name)
 })
 const snapToGrid = ref(true)
 const autoLayout = ref(false)
@@ -1055,6 +1077,7 @@ function handleNodeDoubleClick(node: Node) {
     console.log('Opening Transform Config Panel')
     selectedTransformNode.value = node
     showTransformConfig.value = true
+    showJoinConfig.value = false // Close join config if open
     rightPanelVisible.value = true
 
     // Get columns for debugging
@@ -1062,6 +1085,15 @@ function handleNodeDoubleClick(node: Node) {
     console.log('Detected columns:', columns)
 
     message.info('Transform config panel opened')
+  } else if (node.type === 'join') {
+    // If it's a join node, show join config panel
+    console.log('Opening Join Config Panel')
+    selectedJoinNode.value = node
+    showJoinConfig.value = true
+    showTransformConfig.value = false // Close transform config if open
+    rightPanelVisible.value = true
+
+    message.info('Join config panel opened')
   } else if (node.type === 'dataset') {
     // For dataset nodes, show data preview
     bottomPanelVisible.value = true
@@ -1494,6 +1526,36 @@ async function handleApplyTransform(transform: any) {
 function handleCloseTransformConfig() {
   showTransformConfig.value = false
   selectedTransformNode.value = null
+}
+
+// Join configuration handlers
+async function handleApplyJoin(joinConfig: any) {
+  const targetNode = selectedJoinNode.value
+  if (!targetNode) return
+
+  try {
+    // Update node data with join configuration
+    pipelineStore.updateNode(targetNode.id, {
+      data: {
+        ...targetNode.data,
+        joinConfig: joinConfig
+      }
+    })
+
+    message.success('Join configuration applied')
+
+    // Close the join config panel
+    showJoinConfig.value = false
+    selectedJoinNode.value = null
+  } catch (error) {
+    console.error('Error applying join config:', error)
+    message.error('Failed to apply join configuration')
+  }
+}
+
+function handleCloseJoinConfig() {
+  showJoinConfig.value = false
+  selectedJoinNode.value = null
 }
 
 // Get node columns

@@ -25,6 +25,8 @@ export type TransformType =
   | 'fillNull'         // 填充空值
   | 'replace'          // 替换值（旧版，简单）
   | 'replaceValues'    // 替换值（新版，多模式）
+  | 'cleanString'      // 清理字符串（Palantir官方）
+  | 'titleCase'        // 标题大小写（Palantir官方）
 
 export interface Transform {
   id: string
@@ -107,6 +109,12 @@ export function applyTransform(data: any[], transform: Transform): TransformResu
         break
       case 'replaceValues':
         result = applyReplaceValues(data, params)
+        break
+      case 'cleanString':
+        result = applyCleanString(data, params)
+        break
+      case 'titleCase':
+        result = applyTitleCase(data, params)
         break
       default:
         result = data
@@ -782,4 +790,67 @@ function applySplitColumns(data: any[], params: any): any[] {
  */
 function escapeRegex(str: string): string {
   return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Clean String Transform
+ * 清理字符串：去除空白、压缩多个空白、转换空字符串为 null
+ */
+export function applyCleanString(data: any[], params: {
+  column: string
+  convertEmptyToNull?: boolean
+  reduceWhitespace?: boolean
+  trimWhitespace?: boolean
+}): any[] {
+  const { column, convertEmptyToNull = true, reduceWhitespace = true, trimWhitespace = true } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+    let value = row[column]
+
+    // 只处理字符串类型
+    if (typeof value === 'string') {
+      // 1. Trim whitespace at beginning and end
+      if (trimWhitespace) {
+        value = value.trim()
+      }
+
+      // 2. Reduce multiple whitespace to single
+      if (reduceWhitespace) {
+        value = value.replace(/\s+/g, ' ')
+      }
+
+      // 3. Convert empty strings to null
+      if (convertEmptyToNull && value === '') {
+        value = null
+      }
+
+      newRow[column] = value
+    }
+
+    return newRow
+  })
+}
+
+/**
+ * Title Case Transform
+ * 将字符串转换为标题大小写（每个单词首字母大写）
+ */
+export function applyTitleCase(data: any[], params: {
+  column: string
+}): any[] {
+  const { column } = params
+
+  return data.map(row => {
+    const newRow = { ...row }
+    const value = row[column]
+
+    // 只处理字符串类型
+    if (typeof value === 'string') {
+      // 将每个单词的首字母大写
+      newRow[column] = value.toLowerCase().replace(/\b\w/g, (char) => char.toUpperCase())
+    }
+
+    return newRow
+  })
 }
