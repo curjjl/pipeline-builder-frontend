@@ -1,16 +1,14 @@
 <template>
-  <a-config-provider :locale="zhCN">
+  <ConfigProvider :locale="antdLocale">
     <router-view />
-  </a-config-provider>
+  </ConfigProvider>
 </template>
 
 <script setup lang="ts">
-import zhCN from 'ant-design-vue/es/locale/zh_CN'
-import dayjs from 'dayjs'
-import 'dayjs/locale/zh-cn'
+import { ConfigProvider } from 'ant-design-vue'
+import { useLocale } from '@/composables/useLocale'
 
-// 设置 dayjs 为中文
-dayjs.locale('zh-cn')
+const { antdLocale } = useLocale()
 </script>
 
 <style lang="less">

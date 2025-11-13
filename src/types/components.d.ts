@@ -57,6 +57,7 @@ declare module 'vue' {
     GroupByTransform: typeof import('./../components/pipeline/transforms/GroupByTransform.vue')['default']
     JoinPanel: typeof import('./../components/pipeline/JoinPanel.vue')['default']
     JoinTransform: typeof import('./../components/pipeline/transforms/JoinTransform.vue')['default']
+    LocaleSwitcher: typeof import('./../components/common/LocaleSwitcher.vue')['default']
     NodePalette: typeof import('./../components/pipeline/NodePalette.vue')['default']
     NodeToolbar: typeof import('./../components/pipeline/NodeToolbar.vue')['default']
     RemoveColumnsTransform: typeof import('./../components/pipeline/transforms/RemoveColumnsTransform.vue')['default']

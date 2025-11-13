@@ -4,6 +4,9 @@ import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'
 import App from './App.vue'
 import router from './router'
 
+// 国际化
+import i18n from './locales'
+
 // 全局样式
 import './assets/styles/reset.less'
 import './assets/styles/global.less'
@@ -19,5 +22,6 @@ pinia.use(piniaPluginPersistedstate)
 
 app.use(pinia)
 app.use(router)
+app.use(i18n) // 注册 i18n
 
 app.mount('#app')

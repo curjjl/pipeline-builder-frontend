@@ -24,19 +24,19 @@
             :class="['tab-btn', { active: currentTab === 'graph' }]"
             @click="currentTab = 'graph'"
           >
-            Graph
+            {{ t('pipeline.editor.tabs.graph') }}
           </a-button>
           <a-button
             :class="['tab-btn', { active: currentTab === 'proposals' }]"
             @click="currentTab = 'proposals'"
           >
-            Proposals
+            {{ t('pipeline.editor.tabs.proposals') }}
           </a-button>
           <a-button
             :class="['tab-btn', { active: currentTab === 'history' }]"
             @click="currentTab = 'history'"
           >
-            History
+            {{ t('pipeline.editor.tabs.history') }}
           </a-button>
         </div>
       </div>
@@ -62,15 +62,16 @@
           </template>
         </a-dropdown>
         <a-divider type="vertical" style="height: 20px; margin: 0 8px;" />
+        <LocaleSwitcher style="margin-right: 8px;" />
         <a-button class="action-btn" @click="handleSave">
           <SaveOutlined />
-          Save
+          {{ t('common.actions.save') }}
         </a-button>
         <a-button class="action-btn" @click="handlePropose">
-          Propose
+          {{ t('common.actions.propose') }}
         </a-button>
         <a-button type="primary" class="deploy-btn" @click="handleDeploy">
-          Deploy
+          {{ t('common.actions.deploy') }}
         </a-button>
         <a-dropdown>
           <a-button class="action-btn">
@@ -78,11 +79,11 @@
           </a-button>
           <template #overlay>
             <a-menu @click="handleMoreAction">
-              <a-menu-item key="settings">Settings</a-menu-item>
-              <a-menu-item key="export">Export</a-menu-item>
-              <a-menu-item key="duplicate">Duplicate</a-menu-item>
+              <a-menu-item key="settings">{{ t('common.common.settings') }}</a-menu-item>
+              <a-menu-item key="export">{{ t('common.actions.export') }}</a-menu-item>
+              <a-menu-item key="duplicate">{{ t('common.actions.duplicate') }}</a-menu-item>
               <a-menu-divider />
-              <a-menu-item key="delete" danger>Delete</a-menu-item>
+              <a-menu-item key="delete" danger>{{ t('common.actions.delete') }}</a-menu-item>
             </a-menu>
           </template>
         </a-dropdown>
@@ -92,7 +93,7 @@
     <!-- Toolbar - Palantir Style -->
     <div class="toolbar">
       <div class="toolbar-section">
-        <span class="toolbar-label">Tools</span>
+        <span class="toolbar-label">{{ t('pipeline.editor.toolbar.tools') }}</span>
         <a-button class="toolbar-btn" :class="{ active: currentTool === 'move' }" @click="currentTool = 'move'">
           <DragOutlined />
         </a-button>
@@ -104,28 +105,28 @@
       <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
 
       <div class="toolbar-section">
-        <span class="toolbar-label">Select</span>
-        <a-button class="toolbar-icon-btn" @click="handleSelectAll" title="Select All (Ctrl+A)">
+        <span class="toolbar-label">{{ t('pipeline.editor.toolbar.select') }}</span>
+        <a-button class="toolbar-icon-btn" @click="handleSelectAll" :title="t('pipeline.editor.toolbar.selectAll')">
           <SelectOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleClearSelection" title="Clear Selection (Esc)">
+        <a-button class="toolbar-icon-btn" @click="handleClearSelection" :title="t('pipeline.editor.toolbar.clearSelection')">
           <CloseCircleOutlined />
         </a-button>
       </div>
 
       <div class="toolbar-section">
-        <span class="toolbar-label">Remove</span>
-        <a-button class="toolbar-icon-btn" @click="handleDeleteSelected" :disabled="!hasSelection" title="Delete Selected (Delete)">
+        <span class="toolbar-label">{{ t('pipeline.editor.toolbar.remove') }}</span>
+        <a-button class="toolbar-icon-btn" @click="handleDeleteSelected" :disabled="!hasSelection" :title="t('pipeline.editor.toolbar.deleteSelected')">
           <DeleteOutlined />
         </a-button>
       </div>
 
       <div class="toolbar-section">
-        <span class="toolbar-label">Layout</span>
-        <a-button class="toolbar-icon-btn" @click="handleAutoLayout" title="Auto Layout">
+        <span class="toolbar-label">{{ t('pipeline.editor.toolbar.layout') }}</span>
+        <a-button class="toolbar-icon-btn" @click="handleAutoLayout" :title="t('pipeline.editor.toolbar.autoLayout')">
           <NodeIndexOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleZoom('fit')" title="Fit to Screen">
+        <a-button class="toolbar-icon-btn" @click="handleZoom('fit')" :title="t('pipeline.editor.toolbar.fitToScreen')">
           <CompressOutlined />
         </a-button>
       </div>
@@ -136,7 +137,7 @@
         <a-dropdown trigger="click">
           <a-button class="toolbar-dropdown-btn">
             <DownloadOutlined style="margin-right: 6px;" />
-            Add data
+            {{ t('pipeline.editor.toolbar.addData') }}
             <DownOutlined style="margin-left: 6px; font-size: 10px;" />
           </a-button>
           <template #overlay>
@@ -164,14 +165,14 @@
       <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
 
       <div class="toolbar-section">
-        <span class="toolbar-label">Transform</span>
-        <a-button class="toolbar-icon-btn" @click="handleAddTransformNode" title="Add Transform Node">
+        <span class="toolbar-label">{{ t('pipeline.editor.toolbar.transform') }}</span>
+        <a-button class="toolbar-icon-btn" @click="handleAddTransformNode" :title="t('transform.actions.addTransformNode')">
           <FilterOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleAddJoin" title="Add Join Node">
+        <a-button class="toolbar-icon-btn" @click="handleAddJoin" :title="t('transform.actions.addJoinNode')">
           <MergeCellsOutlined />
         </a-button>
-        <a-button class="toolbar-icon-btn" @click="handleAddOutputNode" title="Add Output Node">
+        <a-button class="toolbar-icon-btn" @click="handleAddOutputNode" :title="t('transform.actions.addOutputNode')">
           <ExportOutlined />
         </a-button>
       </div>
@@ -179,7 +180,7 @@
       <a-divider type="vertical" style="height: 32px; margin: 0 12px;" />
 
       <div class="toolbar-section">
-        <span class="toolbar-label">Edit</span>
+        <span class="toolbar-label">{{ t('common.actions.edit') }}</span>
         <a-button class="toolbar-icon-btn" @click="handleUndo" :disabled="!canUndo">
           <UndoOutlined />
         </a-button>
@@ -192,7 +193,7 @@
 
       <div class="toolbar-section">
         <a-button type="primary" @click="handleRunPipeline" style="margin-right: 8px;">
-          <PlayCircleOutlined /> Run
+          <PlayCircleOutlined /> {{ t('common.actions.run') }}
         </a-button>
       </div>
     </div>
@@ -247,7 +248,7 @@
         <div v-if="showHint" class="official-hint-bar">
           <div class="hint-content">
             <InfoCircleOutlined class="hint-icon" />
-            <span class="hint-text">Click a dataset node and select an action or <a class="hint-link" @click="handleAddData">add data</a> to transform your data.</span>
+            <span class="hint-text">{{ t('pipeline.editor.hints.getStarted') }} <a class="hint-link" @click="handleAddData">{{ t('pipeline.editor.toolbar.addData').toLowerCase() }}</a> {{ t('pipeline.editor.hints.addDataToTransform') }}</span>
             <CloseOutlined class="hint-close" @click="showHint = false" />
           </div>
         </div>
@@ -312,7 +313,7 @@
             <div class="panel-section">
               <div class="section-header">
                 <div class="section-title">
-                  <h3>Pipeline outputs</h3>
+                  <h3>{{ t('pipeline.outputs.title') }}</h3>
                   <a-button type="text" size="small" class="pin-btn">
                     <PushpinOutlined />
                   </a-button>
@@ -321,16 +322,16 @@
 
             <div class="section-content">
               <p class="section-desc">
-                Pipeline outputs are the artifacts your pipeline builds. Pipeline Builder ensures all outputs are defined, healthy, and ready to deploy.
+                {{ t('pipeline.outputs.description') }}
               </p>
 
               <div v-if="outputs.length === 0" class="outputs-empty">
                 <div class="empty-icon">
                   <FileOutlined />
                 </div>
-                <p class="empty-text">No outputs configured</p>
+                <p class="empty-text">{{ t('pipeline.outputs.noOutputs') }}</p>
                 <a-button type="primary" block @click="handleAddOutput" class="add-output-btn">
-                  <PlusOutlined /> Add pipeline output
+                  <PlusOutlined /> {{ t('pipeline.outputs.addOutput') }}
                 </a-button>
               </div>
 
@@ -359,7 +360,7 @@
           <div class="panel-section">
             <div class="section-header collapsible" @click="legendExpanded = !legendExpanded">
               <div class="section-title">
-                <h3>Legend</h3>
+                <h3>{{ t('pipeline.panels.legend') }}</h3>
                 <DownOutlined :class="['expand-icon', { expanded: legendExpanded }]" />
               </div>
             </div>
@@ -390,7 +391,7 @@
           <div class="panel-section">
             <div class="section-header collapsible" @click="settingsExpanded = !settingsExpanded">
               <div class="section-title">
-                <h3>Canvas settings</h3>
+                <h3>{{ t('pipeline.panels.canvasSettings') }}</h3>
                 <DownOutlined :class="['expand-icon', { expanded: settingsExpanded }]" />
               </div>
             </div>
@@ -437,19 +438,19 @@
             @click="bottomTab = 'selection-preview'"
             :disabled="!selectedNode"
           >
-            <EyeOutlined /> Selection preview
+            <EyeOutlined /> {{ t('pipeline.panels.selectionPreview') }}
           </a-button>
           <a-button
             :class="['primary-tab-btn-icon', { active: bottomTab === 'preview' }]"
             @click="bottomTab = 'preview'"
-            title="Preview"
+            :title="t('common.actions.preview')"
           >
             <TableOutlined />
           </a-button>
           <a-button
             :class="['primary-tab-btn-icon', { active: bottomTab === 'suggestions' }]"
             @click="bottomTab = 'suggestions'"
-            title="Suggestions"
+            :title="t('pipeline.panels.suggestions')"
           >
             <BulbOutlined />
           </a-button>
@@ -457,7 +458,7 @@
 
         <div class="panel-header-right">
           <a-button type="text" size="small" class="expand-btn">
-            <span style="font-size: 12px;">Expand all</span>
+            <span style="font-size: 12px;">{{ t('pipeline.panels.expandAll') }}</span>
           </a-button>
           <a-button type="text" size="small" @click="bottomPanelVisible = false" class="close-btn">
             <CloseOutlined />
@@ -468,9 +469,9 @@
       <!-- Secondary tabs (Sub tabs) -->
       <div class="panel-sub-header" v-if="bottomTab === 'selection-preview'">
         <a-tabs v-model:activeKey="subTab" size="small" class="sub-tabs">
-          <a-tab-pane key="about" tab="About" />
-          <a-tab-pane key="columns" tab="Columns" />
-          <a-tab-pane key="schedules" tab="Schedules" />
+          <a-tab-pane key="about" :tab="t('pipeline.tabs.about')" />
+          <a-tab-pane key="columns" :tab="t('pipeline.tabs.columns')" />
+          <a-tab-pane key="schedules" :tab="t('pipeline.tabs.schedules')" />
         </a-tabs>
       </div>
 
@@ -482,7 +483,7 @@
           <div v-show="subTab === 'about'" class="about-content">
             <div v-if="!selectedNode" class="empty-state">
               <p style="color: #98A2B3; text-align: center; padding: 40px 20px;">
-                Select a node to view its details
+                {{ t('pipeline.nodes.selectNode') }}
               </p>
             </div>
             <div v-else>
@@ -725,6 +726,7 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
+import { useI18n } from 'vue-i18n'
 import {
   NodeIndexOutlined,
   BulbOutlined,
@@ -778,7 +780,11 @@ import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue
 import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
+import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
+
+// i18n
+const { t } = useI18n()
 
 const route = useRoute()
 const router = useRouter()
