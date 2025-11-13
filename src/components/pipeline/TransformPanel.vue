@@ -191,13 +191,17 @@ import type { Node } from '@/stores/modules/pipeline'
 
 interface Props {
   node?: Node
+  columns?: any[]
 }
 
-const props = defineProps<Props>()
+const props = withDefaults(defineProps<Props>(), {
+  columns: () => []
+})
 
 const emit = defineEmits<{
   apply: [transform: any]
   cancel: []
+  close: []
 }>()
 
 const searchText = ref('')
@@ -337,11 +341,17 @@ const filteredTransforms = computed(() => {
 
 // 可用列
 const availableColumns = computed(() => {
-  if (!props.node) return []
+  // First try to use columns from props (passed from PipelineEditor)
+  if (props.columns && props.columns.length > 0) {
+    return props.columns
+  }
 
-  // 从节点数据中获取列信息
-  // 这里假设节点数据包含columns信息
-  return props.node.data?.columns || []
+  // Fallback to node data if available
+  if (props.node?.data?.columns) {
+    return props.node.data.columns
+  }
+
+  return []
 })
 
 // 选择转换
@@ -375,6 +385,7 @@ function handleCancel() {
   selectedTransform.value = ''
   selectedTransformData.value = null
   emit('cancel')
+  emit('close')
 }
 </script>
 

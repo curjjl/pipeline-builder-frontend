@@ -29,7 +29,8 @@
       "mcp__chrome-devtools__new_page",
       "mcp__chrome-devtools__select_page",
       "Bash(tree:*)",
-      "Bash(dir:*)"
+      "Bash(dir:*)",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

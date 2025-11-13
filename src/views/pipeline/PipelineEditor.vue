@@ -199,11 +199,11 @@
 
     <!-- Main content area -->
     <div class="main-content">
-      <!-- Node Palette -->
-      <NodePalette
+      <!-- Node Palette - Hidden for expanded canvas area -->
+      <!-- <NodePalette
         @node-drag-start="handleNodeDragStart"
         @node-drag-end="handleNodeDragEnd"
-      />
+      /> -->
 
       <!-- Canvas area -->
       <div class="canvas-area"
@@ -252,38 +252,60 @@
         </div>
       </div>
 
-      <!-- Right panel - Enhanced -->
+      <!-- Transform Config Modal -->
+      <a-modal
+        v-model:open="showTransformConfig"
+        :title="null"
+        :footer="null"
+        :closable="false"
+        :width="1200"
+        :body-style="{ padding: 0, height: '80vh' }"
+        class="transform-config-modal"
+        @cancel="handleCloseTransformConfig"
+      >
+        <TransformPanel
+          v-if="selectedTransformNode"
+          :node="selectedTransformNode"
+          :columns="getNodeColumns(selectedTransformNode)"
+          @close="handleCloseTransformConfig"
+          @apply="handleApplyTransform"
+          @cancel="handleCloseTransformConfig"
+        />
+      </a-modal>
+
+      <!-- Join Config Modal -->
+      <a-modal
+        v-model:open="showJoinConfig"
+        :title="null"
+        :footer="null"
+        :closable="false"
+        :width="1200"
+        :body-style="{ padding: 0, height: '80vh' }"
+        class="join-config-modal"
+        @cancel="handleCloseJoinConfig"
+      >
+        <JoinPanel
+          v-if="selectedJoinNode"
+          :node="selectedJoinNode"
+          @close="handleCloseJoinConfig"
+          @apply="handleApplyJoin"
+        />
+      </a-modal>
+
+      <!-- Right panel - Enhanced (for other content) -->
       <div
         class="right-panel"
         :style="{ width: rightPanelWidth + 'px' }"
-        v-if="rightPanelVisible"
+        v-if="rightPanelVisible && !showTransformConfig && !showJoinConfig"
       >
         <div
           class="resize-handle resize-handle-left"
           @mousedown="startResize('right')"
         ></div>
 
-        <!-- Right panel sections -->
         <div class="right-panel-content">
-          <!-- Transform Config Panel -->
-          <TransformConfigPanel
-            v-if="showTransformConfig && selectedTransformNode"
-            :node="selectedTransformNode"
-            :columns="getNodeColumns(selectedTransformNode)"
-            @close="handleCloseTransformConfig"
-            @apply="handleApplyTransform"
-          />
-
-          <!-- Join Config Panel -->
-          <JoinPanel
-            v-else-if="showJoinConfig && selectedJoinNode"
-            :node="selectedJoinNode"
-            @close="handleCloseJoinConfig"
-            @apply="handleApplyJoin"
-          />
-
           <!-- Pipeline outputs section -->
-          <div v-else class="pipeline-outputs-section">
+          <div class="pipeline-outputs-section">
             <div class="panel-section">
               <div class="section-header">
                 <div class="section-title">
@@ -822,7 +844,7 @@ const availableDatasets = computed(() => {
 const outputs = ref<any[]>([])
 
 // Right panel
-const rightPanelWidth = ref(420)
+const rightPanelWidth = ref(900)
 const rightPanelVisible = ref(true) // Always visible
 const legendExpanded = ref(false)
 const settingsExpanded = ref(false)
@@ -2472,7 +2494,7 @@ onUnmounted(() => {
 
 // ==================== Right Panel - Enhanced ====================
 .right-panel {
-  width: 320px;
+  width: 900px;
   background: #FFFFFF;
   border-left: 1px solid #E4E7EB;
   display: flex;
@@ -3126,6 +3148,21 @@ onUnmounted(() => {
   to {
     opacity: 1;
     transform: scale(1);
+  }
+}
+
+// ==================== Modal Styles ====================
+:deep(.transform-config-modal),
+:deep(.join-config-modal) {
+  .ant-modal-content {
+    border-radius: 8px;
+    overflow: hidden;
+  }
+
+  .ant-modal-body {
+    padding: 0;
+    height: 80vh;
+    overflow: hidden;
   }
 }
 </style>

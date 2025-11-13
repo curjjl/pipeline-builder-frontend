@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed } from 'vue'
+import { reactive, computed, toRefs } from 'vue'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
 
 interface Column {
@@ -113,6 +113,10 @@ const emit = defineEmits<{
   apply: [config: any]
   cancel: []
 }>()
+
+// Use props.columns directly - expose to template
+const { columns } = toRefs(props)
+
 
 const formData = reactive<{
   matchType: 'all' | 'any'
