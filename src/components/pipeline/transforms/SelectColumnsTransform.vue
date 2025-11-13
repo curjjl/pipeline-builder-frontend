@@ -1,37 +1,37 @@
 <template>
   <div class="select-columns-transform">
     <div class="transform-header">
-      <h4 class="transform-title">SELECT COLUMNS</h4>
-      <p class="transform-desc">Choose which columns to keep in the output</p>
+      <h4 class="transform-title">{{ t('transform.selectColumns.title') }}</h4>
+      <p class="transform-desc">{{ t('transform.selectColumns.description') }}</p>
     </div>
 
     <div class="transform-body">
       <!-- Column Selection Mode -->
       <div class="form-group">
-        <label class="form-label">Selection Mode</label>
+        <label class="form-label">{{ t('transform.selectColumns.selectionMode') }}</label>
         <a-radio-group v-model:value="config.mode" button-style="solid" size="small">
-          <a-radio-button value="include">Include Columns</a-radio-button>
-          <a-radio-button value="exclude">Exclude Columns</a-radio-button>
+          <a-radio-button value="include">{{ t('transform.selectColumns.includeColumns') }}</a-radio-button>
+          <a-radio-button value="exclude">{{ t('transform.selectColumns.excludeColumns') }}</a-radio-button>
         </a-radio-group>
         <div class="form-hint">
-          {{ config.mode === 'include' ? 'Select columns to keep' : 'Select columns to remove' }}
+          {{ config.mode === 'include' ? t('transform.selectColumns.selectToKeep') : t('transform.selectColumns.selectToRemove') }}
         </div>
       </div>
 
       <!-- Available Columns -->
       <div class="form-group">
         <label class="form-label">
-          {{ config.mode === 'include' ? 'Columns to Keep' : 'Columns to Remove' }}
-          <span class="column-count">({{ selectedColumns.length }} selected)</span>
+          {{ config.mode === 'include' ? t('transform.selectColumns.columnsToKeep') : t('transform.selectColumns.columnsToRemove') }}
+          <span class="column-count">({{ selectedColumns.length }} {{ t('transform.selectColumns.selected') }})</span>
         </label>
 
         <!-- Select All / Clear All -->
         <div class="selection-actions">
           <a-button size="small" type="link" @click="selectAll">
-            Select All
+            {{ t('transform.selectColumns.selectAll') }}
           </a-button>
           <a-button size="small" type="link" @click="clearAll">
-            Clear All
+            {{ t('transform.selectColumns.clearAll') }}
           </a-button>
         </div>
 
@@ -39,8 +39,8 @@
         <div class="column-list">
           <div v-if="availableColumns.length === 0" class="empty-state">
             <InfoCircleOutlined style="font-size: 24px; color: #98A2B3;" />
-            <p>No columns available</p>
-            <p class="empty-hint">Connect an input node first</p>
+            <p>{{ t('transform.selectColumns.noColumns') }}</p>
+            <p class="empty-hint">{{ t('transform.selectColumns.connectInput') }}</p>
           </div>
 
           <a-checkbox-group
@@ -68,11 +68,11 @@
       <div v-if="selectedColumns.length > 0" class="preview-section">
         <div class="preview-header">
           <EyeOutlined />
-          <span>Output Preview</span>
+          <span>{{ t('transform.selectColumns.outputPreview') }}</span>
         </div>
         <div class="preview-content">
           <div class="preview-info">
-            <span class="preview-label">Columns in output:</span>
+            <span class="preview-label">{{ t('transform.selectColumns.columnsInOutput') }}</span>
             <span class="preview-value">{{ outputColumnCount }}</span>
           </div>
           <div class="preview-columns">
@@ -85,7 +85,7 @@
               {{ col }}
             </a-tag>
             <span v-if="previewColumns.length > 10" class="more-columns">
-              +{{ previewColumns.length - 10 }} more
+              +{{ previewColumns.length - 10 }} {{ t('transform.selectColumns.more') }}
             </span>
           </div>
         </div>
@@ -94,13 +94,13 @@
 
     <!-- Action Buttons -->
     <div class="transform-footer">
-      <a-button @click="handleCancel">Cancel</a-button>
+      <a-button @click="handleCancel">{{ t('transform.common.cancel') }}</a-button>
       <a-button
         type="primary"
         :disabled="!isValid"
         @click="handleApply"
       >
-        Apply Transform
+        {{ t('transform.selectColumns.applyTransform') }}
       </a-button>
     </div>
   </div>
@@ -108,9 +108,12 @@
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { message } from 'ant-design-vue'
 import { InfoCircleOutlined, EyeOutlined } from '@ant-design/icons-vue'
 import type { Transform } from '@/utils/transform'
+
+const { t } = useI18n()
 
 interface Column {
   name: string
@@ -183,12 +186,12 @@ function clearAll() {
 
 function handleApply() {
   if (!isValid.value) {
-    message.warning('Please select at least one column')
+    message.warning(t('transform.selectColumns.selectAtLeastOne'))
     return
   }
 
   if (config.value.mode === 'exclude' && selectedColumns.value.length === props.availableColumns.length) {
-    message.warning('Cannot exclude all columns')
+    message.warning(t('transform.selectColumns.cannotExcludeAll'))
     return
   }
 
@@ -196,7 +199,7 @@ function handleApply() {
     mode: config.value.mode,
     columns: [...selectedColumns.value]
   })
-  message.success('Select Columns transform applied')
+  message.success(t('transform.selectColumns.transformApplied'))
 }
 
 function handleCancel() {

@@ -23,7 +23,7 @@
       <div class="search-box">
         <a-input
           v-model:value="searchText"
-          placeholder="Search transforms and columns..."
+          :placeholder="t('transform.panel.searchPlaceholder')"
           size="small"
           class="category-search"
           allow-clear
@@ -36,7 +36,7 @@
               @click="searchText = ''"
               class="clear-btn"
             >
-              Clear
+              {{ t('transform.panel.clear') }}
             </a-button>
           </template>
         </a-input>
@@ -58,9 +58,9 @@
     <!-- 中间：转换列表 -->
     <div class="transform-list">
       <div class="transform-list-header">
-        <span>Choose a transform to use</span>
+        <span>{{ t('transform.panel.chooseTransform') }}</span>
         <a-button type="link" size="small" @click="handleClear">
-          Clear
+          {{ t('transform.panel.clear') }}
         </a-button>
       </div>
 
@@ -83,7 +83,7 @@
     <!-- 右侧：转换配置 -->
     <div class="transform-config">
       <div v-if="!selectedTransform" class="config-empty">
-        <a-empty description="Select a transform to configure" />
+        <a-empty :description="t('transform.panel.selectToConfig')" />
       </div>
 
       <div v-else class="config-content">
@@ -207,6 +207,7 @@
 
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import FilterTransform from './transforms/FilterTransform.vue'
 import GroupByTransform from './transforms/GroupByTransform.vue'
 import SortTransform from './transforms/SortTransform.vue'
@@ -241,111 +242,113 @@ const emit = defineEmits<{
   removeTransform: [index: number]
 }>()
 
+const { t } = useI18n()
+
 const searchText = ref('')
 const activeCategory = ref('all')
 const selectedTransform = ref<string>('')
 const selectedTransformData = ref<any>(null)
 
 // 转换分类
-const categories = [
-  { key: 'all', label: 'All' },
-  { key: 'popular', label: 'Popular' },
-  { key: 'functions', label: 'Custom functions' },
-  { key: 'udfs', label: 'UDFs' },
-  { key: 'aggregate', label: 'Aggregate' },
-  { key: 'array', label: 'Array' },
-  { key: 'binary', label: 'Binary' },
-  { key: 'boolean', label: 'Boolean' },
-  { key: 'cast', label: 'Cast' },
-  { key: 'data-prep', label: 'Data preparation' },
-  { key: 'datetime', label: 'Datetime' }
-]
+const categories = computed(() => [
+  { key: 'all', label: t('transform.categories.all') },
+  { key: 'popular', label: t('transform.categories.popular') },
+  { key: 'functions', label: t('transform.categories.functions') },
+  { key: 'udfs', label: t('transform.categories.udfs') },
+  { key: 'aggregate', label: t('transform.categories.aggregate') },
+  { key: 'array', label: t('transform.categories.array') },
+  { key: 'binary', label: t('transform.categories.binary') },
+  { key: 'boolean', label: t('transform.categories.boolean') },
+  { key: 'cast', label: t('transform.categories.cast') },
+  { key: 'data-prep', label: t('transform.categories.dataPrep') },
+  { key: 'datetime', label: t('transform.categories.datetime') }
+])
 
 // 可用的转换列表
-const transforms = [
+const transforms = computed(() => [
   {
     key: 'filter',
-    name: 'Filter',
+    name: t('transform.types.filter'),
     category: ['all', 'popular', 'data-prep'],
-    description: 'Filter rows based on comparisons for selected columns.'
+    description: t('transform.descriptions.filter')
   },
   {
     key: 'group-by',
-    name: 'Aggregate',
+    name: t('transform.types.aggregate'),
     category: ['all', 'popular', 'aggregate'],
-    description: 'Group rows and apply aggregation functions.'
+    description: t('transform.descriptions.aggregate')
   },
   {
     key: 'sort',
-    name: 'Sort',
+    name: t('transform.types.sort'),
     category: ['all', 'data-prep'],
-    description: 'Sort rows by column values.'
+    description: t('transform.descriptions.sort')
   },
   {
     key: 'cast',
-    name: 'Cast',
+    name: t('transform.types.cast'),
     category: ['all', 'cast'],
-    description: 'Cast column to different type.'
+    description: t('transform.descriptions.cast')
   },
   {
     key: 'selectColumns',
-    name: 'Select columns',
+    name: t('transform.types.selectColumns'),
     category: ['all', 'data-prep'],
-    description: 'Select specific columns to keep or exclude.'
+    description: t('transform.descriptions.selectColumns')
   },
   {
     key: 'renameColumns',
-    name: 'Rename columns',
+    name: t('transform.types.renameColumns'),
     category: ['all', 'data-prep'],
-    description: 'Rename one or more columns.'
+    description: t('transform.descriptions.renameColumns')
   },
   {
     key: 'removeColumns',
-    name: 'Remove columns',
+    name: t('transform.types.removeColumns'),
     category: ['all', 'data-prep'],
-    description: 'Remove one or more columns from the dataset.'
+    description: t('transform.descriptions.removeColumns')
   },
   {
     key: 'trimWhitespace',
-    name: 'Trim whitespace',
+    name: t('transform.types.trimWhitespace'),
     category: ['all', 'data-prep'],
-    description: 'Remove leading/trailing whitespace from text columns.'
+    description: t('transform.descriptions.trimWhitespace')
   },
   {
     key: 'replaceValues',
-    name: 'Replace values',
+    name: t('transform.types.replaceValues'),
     category: ['all', 'data-prep'],
-    description: 'Find and replace values using exact match, contains, or regex.'
+    description: t('transform.descriptions.replaceValues')
   },
   {
     key: 'splitColumns',
-    name: 'Split column',
+    name: t('transform.types.splitColumn'),
     category: ['all', 'data-prep'],
-    description: 'Split a column into multiple columns based on delimiter.'
+    description: t('transform.descriptions.splitColumn')
   },
   {
     key: 'cleanString',
-    name: 'Clean string',
+    name: t('transform.types.cleanString'),
     category: ['all', 'popular', 'data-prep'],
-    description: 'Clean and normalize string values by removing whitespace and converting empty strings.'
+    description: t('transform.descriptions.cleanString')
   },
   {
     key: 'titleCase',
-    name: 'Title case',
+    name: t('transform.types.titleCase'),
     category: ['all', 'data-prep'],
-    description: 'Convert text to title case where the first letter of each word is capitalized.'
+    description: t('transform.descriptions.titleCase')
   },
   {
     key: 'distinct',
-    name: 'Distinct',
+    name: t('transform.types.distinct'),
     category: ['all', 'data-prep'],
-    description: 'Remove duplicate rows.'
+    description: t('transform.descriptions.distinct')
   },
   {
     key: 'addColumn',
-    name: 'Add column',
+    name: t('transform.types.addColumn'),
     category: ['all', 'data-prep'],
-    description: 'Add a new calculated column with expressions.'
+    description: t('transform.descriptions.addColumn')
   },
   {
     key: 'fill-null',
@@ -353,11 +356,11 @@ const transforms = [
     category: ['all', 'data-prep'],
     description: 'Fill null values with a default value.'
   }
-]
+])
 
 // 过滤后的转换列表
 const filteredTransforms = computed(() => {
-  let result = transforms
+  let result = transforms.value
 
   // 按分类过滤
   if (activeCategory.value !== 'all') {

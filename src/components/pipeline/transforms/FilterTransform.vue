@@ -1,15 +1,15 @@
 <template>
   <div class="filter-transform">
     <div class="transform-header">
-      <h3>FILTER</h3>
-      <p>Filter rows based on comparisons for selected columns.</p>
+      <h3>{{ t('transform.filter.title') }}</h3>
+      <p>{{ t('transform.filter.description') }}</p>
     </div>
 
     <a-form :model="formData" layout="vertical" class="transform-form">
-      <a-form-item label="Keep rows" required>
+      <a-form-item :label="t('transform.filter.keepRows')" required>
         <a-select v-model:value="formData.matchType">
-          <a-select-option value="all">that match all conditions</a-select-option>
-          <a-select-option value="any">that match any condition</a-select-option>
+          <a-select-option value="all">{{ t('transform.filter.matchAll') }}</a-select-option>
+          <a-select-option value="any">{{ t('transform.filter.matchAny') }}</a-select-option>
         </a-select>
       </a-form-item>
 
@@ -20,10 +20,10 @@
           :key="index"
           class="condition-item"
         >
-          <a-form-item label="Column" required>
+          <a-form-item :label="t('transform.filter.column')" required>
             <a-select
               v-model:value="condition.column"
-              placeholder="Select column"
+              :placeholder="t('transform.filter.selectColumn')"
               show-search
             >
               <a-select-option
@@ -36,29 +36,29 @@
             </a-select>
           </a-form-item>
 
-          <a-form-item label="Operator" required>
-            <a-select v-model:value="condition.operator" placeholder="Select operator">
-              <a-select-option value="equals">is equal to</a-select-option>
-              <a-select-option value="not equals">is not equal to</a-select-option>
-              <a-select-option value="contains">contains</a-select-option>
-              <a-select-option value="not contains">does not contain</a-select-option>
-              <a-select-option value="starts with">starts with</a-select-option>
-              <a-select-option value="ends with">ends with</a-select-option>
-              <a-select-option value=">">is greater than</a-select-option>
-              <a-select-option value="<">is less than</a-select-option>
-              <a-select-option value=">=">is greater than or equal to</a-select-option>
-              <a-select-option value="<=">is less than or equal to</a-select-option>
-              <a-select-option value="is null">is null</a-select-option>
-              <a-select-option value="is not null">is not null</a-select-option>
+          <a-form-item :label="t('transform.filter.operator')" required>
+            <a-select v-model:value="condition.operator" :placeholder="t('transform.filter.selectOperator')">
+              <a-select-option value="equals">{{ t('transform.filter.operators.equals') }}</a-select-option>
+              <a-select-option value="not equals">{{ t('transform.filter.operators.notEquals') }}</a-select-option>
+              <a-select-option value="contains">{{ t('transform.filter.operators.contains') }}</a-select-option>
+              <a-select-option value="not contains">{{ t('transform.filter.operators.notContains') }}</a-select-option>
+              <a-select-option value="starts with">{{ t('transform.filter.operators.startsWith') }}</a-select-option>
+              <a-select-option value="ends with">{{ t('transform.filter.operators.endsWith') }}</a-select-option>
+              <a-select-option value=">">{{ t('transform.filter.operators.greaterThan') }}</a-select-option>
+              <a-select-option value="<">{{ t('transform.filter.operators.lessThan') }}</a-select-option>
+              <a-select-option value=">=">{{ t('transform.filter.operators.greaterThanOrEqual') }}</a-select-option>
+              <a-select-option value="<=">{{ t('transform.filter.operators.lessThanOrEqual') }}</a-select-option>
+              <a-select-option value="is null">{{ t('transform.filter.operators.isNull') }}</a-select-option>
+              <a-select-option value="is not null">{{ t('transform.filter.operators.isNotNull') }}</a-select-option>
             </a-select>
           </a-form-item>
 
           <a-form-item
             v-if="!['is null', 'is not null'].includes(condition.operator)"
-            label="Value"
+            :label="t('transform.filter.value')"
             required
           >
-            <a-input v-model:value="condition.value" placeholder="Enter value" />
+            <a-input v-model:value="condition.value" :placeholder="t('transform.filter.enterValue')" />
           </a-form-item>
 
           <a-button
@@ -69,19 +69,19 @@
             class="remove-btn"
             @click="removeCondition(index)"
           >
-            <DeleteOutlined /> Remove
+            <DeleteOutlined /> {{ t('transform.filter.remove') }}
           </a-button>
         </div>
       </div>
 
       <a-button type="dashed" block @click="addCondition">
-        <PlusOutlined /> Add condition
+        <PlusOutlined /> {{ t('transform.filter.addCondition') }}
       </a-button>
 
       <div class="form-actions">
-        <a-button @click="handleCancel">Cancel</a-button>
+        <a-button @click="handleCancel">{{ t('transform.common.cancel') }}</a-button>
         <a-button type="primary" @click="handleApply" :disabled="!isValid">
-          Apply
+          {{ t('transform.common.apply') }}
         </a-button>
       </div>
     </a-form>
@@ -90,7 +90,10 @@
 
 <script setup lang="ts">
 import { reactive, computed, toRefs } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
+
+const { t } = useI18n()
 
 interface Column {
   name: string
