@@ -299,15 +299,25 @@
       <!-- Right panel - Enhanced (for other content) -->
       <div
         class="right-panel"
-        :style="{ width: rightPanelWidth + 'px' }"
+        :class="{ collapsed: rightPanelCollapsed }"
+        :style="{ width: rightPanelCollapsed ? '48px' : rightPanelWidth + 'px' }"
         v-if="rightPanelVisible && !showTransformConfig && !showJoinConfig"
       >
+        <!-- Collapse/Expand Button -->
+        <div class="panel-collapse-btn" @click="toggleRightPanel">
+          <a-button type="text" size="small">
+            <DoubleRightOutlined v-if="!rightPanelCollapsed" />
+            <DoubleLeftOutlined v-if="rightPanelCollapsed" />
+          </a-button>
+        </div>
+
         <div
+          v-if="!rightPanelCollapsed"
           class="resize-handle resize-handle-left"
           @mousedown="(e) => startResize('right', e)"
         ></div>
 
-        <div class="right-panel-content">
+        <div class="right-panel-content" v-if="!rightPanelCollapsed">
           <!-- Pipeline outputs section -->
           <div class="pipeline-outputs-section">
             <div class="panel-section">
@@ -763,7 +773,9 @@ import {
   CalendarOutlined,
   CheckCircleOutlined,
   CloseCircleOutlined,
-  UploadOutlined
+  UploadOutlined,
+  DoubleRightOutlined,
+  DoubleLeftOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -853,8 +865,9 @@ const availableDatasets = computed(() => {
 const outputs = ref<any[]>([])
 
 // Right panel
-const rightPanelWidth = ref(900)
+const rightPanelWidth = ref(400) // Reduced from 900 to 400
 const rightPanelVisible = ref(true) // Always visible
+const rightPanelCollapsed = ref(false) // New: track collapsed state
 const legendExpanded = ref(false)
 const settingsExpanded = ref(false)
 const showGrid = ref(false)
@@ -1682,6 +1695,11 @@ function handleZoom(type: 'in' | 'out' | 'fit') {
       zoomLevel.value = 100
       break
   }
+}
+
+// Toggle right panel collapse/expand
+function toggleRightPanel() {
+  rightPanelCollapsed.value = !rightPanelCollapsed.value
 }
 
 // Auto layout
@@ -2551,6 +2569,43 @@ onUnmounted(() => {
   flex-direction: column;
   position: relative;
   flex-shrink: 0;
+  transition: width 0.3s ease;
+
+  &.collapsed {
+    width: 48px !important;
+
+    .panel-collapse-btn {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+  }
+
+  .panel-collapse-btn {
+    position: absolute;
+    left: 8px;
+    top: 12px;
+    z-index: 11;
+    transition: left 0.3s ease, transform 0.3s ease;
+
+    .ant-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 4px;
+      background: #FFFFFF;
+      border: 1px solid #E4E7EB;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+
+      &:hover {
+        background: #F5F6F7;
+        border-color: #2D6EED;
+        color: #2D6EED;
+      }
+    }
+  }
 
   .resize-handle-left {
     position: absolute;
@@ -2571,6 +2626,7 @@ onUnmounted(() => {
     overflow-y: auto;
     display: flex;
     flex-direction: column;
+    padding-top: 48px; // Make space for collapse button
   }
 
   // Panel section
