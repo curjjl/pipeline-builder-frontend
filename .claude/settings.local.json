@@ -30,7 +30,8 @@
       "mcp__chrome-devtools__select_page",
       "Bash(tree:*)",
       "Bash(dir:*)",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(timeout 2 bash:*)"
     ],
     "deny": [],
     "ask": []

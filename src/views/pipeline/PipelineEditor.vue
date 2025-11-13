@@ -267,9 +267,11 @@
           v-if="selectedTransformNode"
           :node="selectedTransformNode"
           :columns="getNodeColumns(selectedTransformNode)"
+          :applied-transforms="getNodeTransforms(selectedTransformNode)"
           @close="handleCloseTransformConfig"
           @apply="handleApplyTransform"
           @cancel="handleCloseTransformConfig"
+          @remove-transform="handleRemoveTransform"
         />
       </a-modal>
 
@@ -1523,20 +1525,27 @@ async function handleApplyTransform(transform: any) {
   if (!targetNode) return
 
   try {
-    // Update node data with transform configuration
+    // Get existing transforms array or initialize empty array
+    const existingTransforms = targetNode.data?.transforms || []
+
+    // Add new transform to array
+    const updatedTransforms = [...existingTransforms, transform]
+
+    // Update node data with transforms array
     pipelineStore.updateNode(targetNode.id, {
       data: {
         ...targetNode.data,
-        transformConfig: transform,
-        transformCount: (targetNode.data?.transformCount || 0) + 1
+        transforms: updatedTransforms,
+        transformCount: updatedTransforms.length
       }
     })
 
-    message.success(`Transform "${transform.type}" applied`)
+    message.success(`Transform "${transform.name || transform.type}" applied`)
 
-    // Close transform config panel
-    showTransformConfig.value = false
-    selectedTransformNode.value = null
+    // Keep transform config panel open to allow adding more transforms
+    // User can close it manually when done
+    // showTransformConfig.value = false
+    // selectedTransformNode.value = null
 
     bottomTab.value = 'preview'
   } catch (error: any) {
@@ -1601,6 +1610,38 @@ function getNodeColumns(node: Node) {
   }
 
   return []
+}
+
+// Get node transforms array
+function getNodeTransforms(node: Node) {
+  if (!node) return []
+  return node.data?.transforms || []
+}
+
+// Remove transform by index
+function handleRemoveTransform(index: number) {
+  const targetNode = selectedTransformNode.value
+  if (!targetNode) return
+
+  try {
+    const existingTransforms = targetNode.data?.transforms || []
+
+    // Remove transform at index
+    const updatedTransforms = existingTransforms.filter((_, i) => i !== index)
+
+    // Update node data
+    pipelineStore.updateNode(targetNode.id, {
+      data: {
+        ...targetNode.data,
+        transforms: updatedTransforms,
+        transformCount: updatedTransforms.length
+      }
+    })
+
+    message.success('Transform removed')
+  } catch (error: any) {
+    message.error(`Failed to remove transform: ${error.message}`)
+  }
 }
 
 // Cancel transform
