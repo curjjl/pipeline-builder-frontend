@@ -1,13 +1,46 @@
 <template>
   <div class="transform-panel">
-    <!-- 左侧：转换分类 -->
-    <div class="transform-categories">
-      <a-input-search
-        v-model:value="searchText"
-        placeholder="Search transforms and columns..."
-        size="small"
-        class="category-search"
-      />
+    <!-- 顶部：已应用的Transforms标签栏 -->
+    <div v-if="appliedTransforms && appliedTransforms.length > 0" class="applied-transforms-bar">
+      <div class="applied-transforms-container">
+        <a-tag
+          v-for="(transform, index) in appliedTransforms"
+          :key="index"
+          color="purple"
+          closable
+          class="transform-tag"
+          @close="handleRemoveTransform(index)"
+        >
+          {{ transform.name || transform.type }}
+        </a-tag>
+      </div>
+    </div>
+
+    <!-- 主内容区域（三栏布局） -->
+    <div class="transform-content">
+      <!-- 左侧：转换分类 -->
+      <div class="transform-categories">
+      <div class="search-box">
+        <a-input
+          v-model:value="searchText"
+          placeholder="Search transforms and columns..."
+          size="small"
+          class="category-search"
+          allow-clear
+        >
+          <template #suffix>
+            <a-button
+              v-if="searchText"
+              type="text"
+              size="small"
+              @click="searchText = ''"
+              class="clear-btn"
+            >
+              Clear
+            </a-button>
+          </template>
+        </a-input>
+      </div>
 
       <div class="category-list">
         <div
@@ -168,6 +201,7 @@
         />
       </div>
     </div>
+    </div>
   </div>
 </template>
 
@@ -192,16 +226,19 @@ import type { Node } from '@/stores/modules/pipeline'
 interface Props {
   node?: Node
   columns?: any[]
+  appliedTransforms?: any[]
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  columns: () => []
+  columns: () => [],
+  appliedTransforms: () => []
 })
 
 const emit = defineEmits<{
   apply: [transform: any]
   cancel: []
   close: []
+  removeTransform: [index: number]
 }>()
 
 const searchText = ref('')
@@ -387,13 +424,50 @@ function handleCancel() {
   emit('cancel')
   emit('close')
 }
+
+// 移除已应用的transform
+function handleRemoveTransform(index: number) {
+  emit('removeTransform', index)
+}
 </script>
 
 <style scoped lang="less">
 .transform-panel {
   display: flex;
+  flex-direction: column;
   height: 100%;
   background: #FFFFFF;
+}
+
+// 顶部已应用的Transforms标签栏
+.applied-transforms-bar {
+  padding: 12px 16px;
+  background: #F8F9FA;
+  border-bottom: 1px solid #E4E7EB;
+
+  .applied-transforms-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+
+    .transform-tag {
+      font-size: 13px;
+      padding: 4px 12px;
+      border-radius: 16px;
+      cursor: pointer;
+
+      &:hover {
+        opacity: 0.8;
+      }
+    }
+  }
+}
+
+// 主内容区域（三栏布局）
+.transform-content {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .transform-categories {
@@ -403,8 +477,22 @@ function handleCancel() {
   display: flex;
   flex-direction: column;
 
-  .category-search {
-    margin: 12px;
+  .search-box {
+    padding: 12px;
+
+    .category-search {
+      width: 100%;
+    }
+
+    .clear-btn {
+      color: #2D6EED;
+      padding: 0 4px;
+      font-size: 12px;
+
+      &:hover {
+        color: #1557D0;
+      }
+    }
   }
 
   .category-list {

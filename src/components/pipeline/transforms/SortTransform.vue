@@ -1,7 +1,7 @@
 <template>
   <div class="sort-transform">
     <div class="transform-header">
-      <h3>Sort</h3>
+      <h3>SORT</h3>
       <p>Sort rows by column values.</p>
     </div>
 

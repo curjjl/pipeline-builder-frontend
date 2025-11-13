@@ -1,7 +1,7 @@
 <template>
   <div class="remove-columns-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Remove Columns</h4>
+      <h4 class="transform-title">REMOVE COLUMNS</h4>
       <p class="transform-desc">Remove specific columns from your dataset</p>
     </div>
 

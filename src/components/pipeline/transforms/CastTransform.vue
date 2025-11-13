@@ -1,7 +1,7 @@
 <template>
   <div class="cast-transform">
     <div class="transform-header">
-      <h3>Cast to Date</h3>
+      <h3>CAST TO DATE</h3>
       <p>Casting strings to date requires you to specify how the strings are formatted.</p>
     </div>
 

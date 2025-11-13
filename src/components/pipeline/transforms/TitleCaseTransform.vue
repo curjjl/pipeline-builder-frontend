@@ -1,7 +1,7 @@
 <template>
   <div class="title-case-transform">
     <div class="transform-header">
-      <h3>Title Case</h3>
+      <h3>TITLE CASE</h3>
       <p class="description">Convert text to title case where the first letter of each word is capitalized</p>
     </div>
 

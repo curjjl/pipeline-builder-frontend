@@ -1,7 +1,7 @@
 <template>
   <div class="rename-columns-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Rename Columns</h4>
+      <h4 class="transform-title">RENAME COLUMNS</h4>
       <p class="transform-desc">Change column names in your dataset</p>
     </div>
 

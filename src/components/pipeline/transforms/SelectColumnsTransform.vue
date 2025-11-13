@@ -1,7 +1,7 @@
 <template>
   <div class="select-columns-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Select Columns</h4>
+      <h4 class="transform-title">SELECT COLUMNS</h4>
       <p class="transform-desc">Choose which columns to keep in the output</p>
     </div>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="split-columns-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Split Column</h4>
+      <h4 class="transform-title">SPLIT COLUMN</h4>
       <p class="transform-desc">Split a column into multiple columns based on a delimiter</p>
     </div>
 

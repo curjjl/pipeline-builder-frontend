@@ -1,7 +1,7 @@
 <template>
   <div class="add-column-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Add Column</h4>
+      <h4 class="transform-title">ADD COLUMN</h4>
       <p class="transform-desc">Create a new calculated column from existing data</p>
     </div>
 

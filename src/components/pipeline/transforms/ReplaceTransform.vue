@@ -1,7 +1,7 @@
 <template>
   <div class="replace-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Replace Values</h4>
+      <h4 class="transform-title">REPLACE VALUES</h4>
       <p class="transform-desc">Find and replace values in columns</p>
     </div>
 

@@ -1,7 +1,7 @@
 <template>
   <div class="clean-string-transform">
     <div class="transform-header">
-      <h3>Clean String</h3>
+      <h3>CLEAN STRING</h3>
       <p class="description">Clean and normalize string values by removing whitespace and converting empty strings</p>
     </div>
 

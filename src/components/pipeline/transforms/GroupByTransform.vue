@@ -1,7 +1,7 @@
 <template>
   <div class="groupby-transform">
     <div class="transform-header">
-      <h3>Aggregate (Group By)</h3>
+      <h3>AGGREGATE (GROUP BY)</h3>
       <p>Group rows and apply aggregation functions.</p>
     </div>
 

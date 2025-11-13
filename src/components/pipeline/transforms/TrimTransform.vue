@@ -1,7 +1,7 @@
 <template>
   <div class="trim-transform">
     <div class="transform-header">
-      <h4 class="transform-title">Trim Whitespace</h4>
+      <h4 class="transform-title">TRIM WHITESPACE</h4>
       <p class="transform-desc">Remove leading and trailing whitespace from text columns</p>
     </div>
 

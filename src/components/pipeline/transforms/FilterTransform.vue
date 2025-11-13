@@ -1,7 +1,7 @@
 <template>
   <div class="filter-transform">
     <div class="transform-header">
-      <h3>Filter</h3>
+      <h3>FILTER</h3>
       <p>Filter rows based on comparisons for selected columns.</p>
     </div>
 
