@@ -299,7 +299,7 @@
       <!-- Right panel - Enhanced (for other content) -->
       <div
         class="right-panel"
-        :class="{ collapsed: rightPanelCollapsed }"
+        :class="{ collapsed: rightPanelCollapsed, resizing: isResizing }"
         :style="{ width: rightPanelCollapsed ? '48px' : rightPanelWidth + 'px' }"
         v-if="rightPanelVisible && !showTransformConfig && !showJoinConfig"
       >
@@ -432,15 +432,25 @@
     <div
       v-if="bottomPanelVisible"
       class="bottom-panel"
-      :style="{ height: bottomPanelHeight + 'px' }"
+      :class="{ collapsed: bottomPanelCollapsed, resizing: isResizing }"
+      :style="{ height: bottomPanelCollapsed ? '48px' : bottomPanelHeight + 'px' }"
     >
+      <!-- Collapse/Expand Button -->
+      <div class="panel-collapse-btn bottom" @click="toggleBottomPanel">
+        <a-button type="text" size="small">
+          <DownOutlined v-if="!bottomPanelCollapsed" />
+          <UpOutlined v-if="bottomPanelCollapsed" />
+        </a-button>
+      </div>
+
       <div
+        v-if="!bottomPanelCollapsed"
         class="resize-handle resize-handle-top"
         @mousedown="(e) => startResize('bottom', e)"
       ></div>
 
       <!-- Main header with primary tabs -->
-      <div class="panel-header">
+      <div class="panel-header" v-if="!bottomPanelCollapsed">
         <div class="panel-header-left">
           <!-- Primary tabs (like official) -->
           <a-button
@@ -477,7 +487,7 @@
       </div>
 
       <!-- Secondary tabs (Sub tabs) -->
-      <div class="panel-sub-header" v-if="bottomTab === 'selection-preview'">
+      <div class="panel-sub-header" v-if="!bottomPanelCollapsed && bottomTab === 'selection-preview'">
         <a-tabs v-model:activeKey="subTab" size="small" class="sub-tabs">
           <a-tab-pane key="about" :tab="t('pipeline.tabs.about')" />
           <a-tab-pane key="columns" :tab="t('pipeline.tabs.columns')" />
@@ -486,7 +496,7 @@
       </div>
 
       <!-- Panel body content -->
-      <div class="panel-body">
+      <div class="panel-body" v-if="!bottomPanelCollapsed">
         <!-- Selection preview content -->
         <div v-show="bottomTab === 'selection-preview'" class="tab-content">
           <!-- About Tab -->
@@ -775,7 +785,8 @@ import {
   CloseCircleOutlined,
   UploadOutlined,
   DoubleRightOutlined,
-  DoubleLeftOutlined
+  DoubleLeftOutlined,
+  UpOutlined
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
@@ -903,6 +914,7 @@ const autoLayout = ref(false)
 // Bottom panel
 const bottomPanelVisible = ref(true)
 const bottomPanelHeight = ref(350)
+const bottomPanelCollapsed = ref(false) // New: track collapsed state
 const bottomTab = ref('selection-preview')
 
 // Context menu
@@ -1702,6 +1714,11 @@ function toggleRightPanel() {
   rightPanelCollapsed.value = !rightPanelCollapsed.value
 }
 
+// Toggle bottom panel collapse/expand
+function toggleBottomPanel() {
+  bottomPanelCollapsed.value = !bottomPanelCollapsed.value
+}
+
 // Auto layout
 function handleAutoLayout() {
   if (!canvasRef.value) return
@@ -1992,7 +2009,7 @@ function removeOutput(id: string) {
 
 // ==================== Panel Resize ====================
 
-let resizing = false
+const isResizing = ref(false) // Changed to reactive for template usage
 let resizeType: 'right' | 'bottom' = 'right'
 let startX = 0
 let startY = 0
@@ -2002,7 +2019,7 @@ let startHeight = 0
 function startResize(type: 'right' | 'bottom', e: MouseEvent) {
   e.preventDefault()
   e.stopPropagation()
-  resizing = true
+  isResizing.value = true
   resizeType = type
 
   if (type === 'right') {
@@ -2018,7 +2035,7 @@ function startResize(type: 'right' | 'bottom', e: MouseEvent) {
 }
 
 function handleResize(e: MouseEvent) {
-  if (!resizing) return
+  if (!isResizing.value) return
 
   if (resizeType === 'right') {
     const deltaX = startX - e.clientX
@@ -2030,7 +2047,7 @@ function handleResize(e: MouseEvent) {
 }
 
 function stopResize() {
-  resizing = false
+  isResizing.value = false
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResize)
 }
@@ -2571,6 +2588,11 @@ onUnmounted(() => {
   flex-shrink: 0;
   transition: width 0.3s ease;
 
+  // Disable transition when resizing for smooth drag
+  &.resizing {
+    transition: none !important;
+  }
+
   &.collapsed {
     width: 48px !important;
 
@@ -2822,6 +2844,49 @@ onUnmounted(() => {
   flex-direction: column;
   position: relative;
   flex-shrink: 0;
+  transition: height 0.3s ease;
+
+  // Disable transition when resizing for smooth drag
+  &.resizing {
+    transition: none !important;
+  }
+
+  &.collapsed {
+    height: 48px !important;
+
+    .panel-collapse-btn.bottom {
+      top: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  .panel-collapse-btn.bottom {
+    position: absolute;
+    left: 50%;
+    top: 8px;
+    transform: translateX(-50%);
+    z-index: 11;
+    transition: top 0.3s ease, transform 0.3s ease;
+
+    .ant-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      padding: 0;
+      border-radius: 4px;
+      background: #FFFFFF;
+      border: 1px solid #E4E7EB;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+
+      &:hover {
+        background: #F5F6F7;
+        border-color: #2D6EED;
+        color: #2D6EED;
+      }
+    }
+  }
 
   .resize-handle-top {
     position: absolute;
