@@ -27,7 +27,9 @@
       "Bash(timeout 3 bash:*)",
       "Bash(tasklist:*)",
       "mcp__chrome-devtools__new_page",
-      "mcp__chrome-devtools__select_page"
+      "mcp__chrome-devtools__select_page",
+      "Bash(tree:*)",
+      "Bash(dir:*)"
     ],
     "deny": [],
     "ask": []
