@@ -214,6 +214,7 @@
           ref="canvasRef"
           :nodes="nodes"
           :edges="edges"
+          :show-minimap="false"
           @node:click="handleNodeClick"
           @node:dblclick="handleNodeDoubleClick"
           @node:contextmenu="handleNodeContextMenu"
@@ -302,7 +303,7 @@
       >
         <div
           class="resize-handle resize-handle-left"
-          @mousedown="startResize('right')"
+          @mousedown="(e) => startResize('right', e)"
         ></div>
 
         <div class="right-panel-content">
@@ -424,7 +425,7 @@
     >
       <div
         class="resize-handle resize-handle-top"
-        @mousedown="startResize('bottom')"
+        @mousedown="(e) => startResize('bottom', e)"
       ></div>
 
       <!-- Main header with primary tabs -->
@@ -1974,15 +1975,17 @@ let startY = 0
 let startWidth = 0
 let startHeight = 0
 
-function startResize(type: 'right' | 'bottom') {
+function startResize(type: 'right' | 'bottom', e: MouseEvent) {
+  e.preventDefault()
+  e.stopPropagation()
   resizing = true
   resizeType = type
 
   if (type === 'right') {
-    startX = event ? (event as MouseEvent).clientX : 0
+    startX = e.clientX
     startWidth = rightPanelWidth.value
   } else {
-    startY = event ? (event as MouseEvent).clientY : 0
+    startY = e.clientY
     startHeight = bottomPanelHeight.value
   }
 

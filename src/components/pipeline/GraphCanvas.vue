@@ -65,8 +65,9 @@ const initGraph = () => {
     },
     panning: {
       enabled: true,
-      modifiers: 'space'
+      modifiers: ['ctrl', 'meta']  // 按住Ctrl/Command键拖拽画布
     },
+    autoResize: true,  // 启用自动调整大小，响应容器尺寸变化
     mousewheel: {
       enabled: true,
       modifiers: ['ctrl', 'meta'],
