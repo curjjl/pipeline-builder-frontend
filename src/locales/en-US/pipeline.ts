@@ -45,7 +45,10 @@ export default {
       saved: 'Pipeline saved successfully',
       saveError: 'Failed to save pipeline',
       deployed: 'Pipeline deployed successfully',
-      deployError: 'Failed to deploy pipeline'
+      deployError: 'Failed to deploy pipeline',
+      selectNode: 'Please select a node to export',
+      noDataToExport: 'No data available to export',
+      exportError: 'Export failed: {error}'
     }
   },
   outputs: {

@@ -192,6 +192,13 @@
       <div style="flex: 1;"></div>
 
       <div class="toolbar-section">
+        <a-button
+          @click="handleExportNode()"
+          :disabled="!selectedNode"
+          style="margin-right: 8px;"
+        >
+          <DownloadOutlined /> {{ t('common.actions.export') }}
+        </a-button>
         <a-button type="primary" @click="handleRunPipeline" style="margin-right: 8px;">
           <PlayCircleOutlined /> {{ t('common.actions.run') }}
         </a-button>
@@ -739,6 +746,15 @@
       v-model:open="showImportDialog"
       @import="handleDataImport"
     />
+
+    <!-- Data Export Modal -->
+    <DataExportModal
+      v-model:open="showExportDialog"
+      :data="exportData"
+      :columns="exportColumns"
+      :default-file-name="exportFileName"
+      @exported="handleDataExported"
+    />
   </div>
 </template>
 
@@ -803,6 +819,7 @@ import TransformConfigPanel from '@/components/pipeline/TransformConfigPanel.vue
 import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
+import DataExportModal from '@/components/pipeline/DataExportModal.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
 
@@ -952,6 +969,12 @@ const canRedo = ref(false)
 // Import dialog
 const showImportDialog = ref(false)
 
+// Export dialog
+const showExportDialog = ref(false)
+const exportData = ref<any[]>([])
+const exportColumns = ref<string[]>([])
+const exportFileName = ref('export')
+
 // Node ID counter
 let nodeIdCounter = 1
 
@@ -1008,6 +1031,42 @@ function handleDataImport({ data, columns, name }: { data: any[], columns: any[]
 
   pipelineStore.addNode(node)
   message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+}
+
+// Handle data export
+async function handleExportNode(nodeId?: string) {
+  const node = nodeId ? pipelineStore.getNodeById(nodeId) : selectedNode.value
+
+  if (!node) {
+    message.warning(t('pipeline.messages.selectNode'))
+    return
+  }
+
+  try {
+    // Get node data
+    const data = await pipelineStore.getNodeData(node.id)
+
+    if (!data || data.length === 0) {
+      message.warning(t('pipeline.messages.noDataToExport'))
+      return
+    }
+
+    // Get columns
+    const columns = Object.keys(data[0] || {})
+
+    // Set export data and show modal
+    exportData.value = data
+    exportColumns.value = columns
+    exportFileName.value = node.name.replace(/[^a-zA-Z0-9_-]/g, '_')
+    showExportDialog.value = true
+  } catch (error: any) {
+    message.error(t('pipeline.messages.exportError', { error: error.message }))
+  }
+}
+
+function handleDataExported(fileName: string) {
+  // Optional: Track export analytics or perform cleanup
+  console.log('Exported:', fileName)
 }
 
 // Add transform node
@@ -1227,6 +1286,11 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
       icon: 'eye'
     },
     {
+      key: 'export',
+      label: 'Export data',
+      icon: 'download'
+    },
+    {
       key: 'transform',
       label: 'Add transformation',
       icon: 'function'
@@ -1408,6 +1472,9 @@ function handleContextMenuSelect(key: string) {
       break
     case 'preview':
       handleNodeClick(target)
+      break
+    case 'export':
+      handleExportNode(target.id)
       break
     case 'transform':
       handleNodeDoubleClick(target)
