@@ -615,6 +615,3 @@ export function getAllDatasets(): DatasetMeta[] {
   const userMetas = Array.from(userDatasets.values()).map(ds => ds.meta)
   return [...datasetsMeta, ...userMetas]
 }
-
-// 保持向后兼容
-export { getDatasetData, getDatasetMeta }
