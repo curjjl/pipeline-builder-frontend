@@ -48,6 +48,7 @@ declare module 'vue' {
     CastTransform: typeof import('./../components/pipeline/transforms/CastTransform.vue')['default']
     CleanStringTransform: typeof import('./../components/pipeline/transforms/CleanStringTransform.vue')['default']
     ContextMenu: typeof import('./../components/common/ContextMenu.vue')['default']
+    CsvUploadModal: typeof import('./../components/pipeline/CsvUploadModal.vue')['default']
     DataImportDialog: typeof import('./../components/pipeline/DataImportDialog.vue')['default']
     DataPreviewPanel: typeof import('./../components/pipeline/DataPreviewPanel.vue')['default']
     DataTable: typeof import('./../components/pipeline/DataTable.vue')['default']
