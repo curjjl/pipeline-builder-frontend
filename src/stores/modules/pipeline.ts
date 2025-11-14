@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
+import { getDatasetData, getDatasetDataById, getDatasetMeta } from '@/mock/datasets'
 import { applyTransforms, joinDatasets, type Transform, type TransformResult } from '@/utils/transform'
 
 export interface Node {
@@ -210,8 +210,8 @@ export const usePipelineStore = defineStore('pipeline', {
 
       switch (node.type) {
         case 'dataset':
-          // 数据集节点：直接从mock数据加载
-          data = getDatasetData(node.data.datasetId)
+          // 数据集节点：从数据集管理系统加载（支持用户导入的数据集）
+          data = getDatasetDataById(node.data.datasetId) || getDatasetData(node.data.datasetId)
           break
 
         case 'transform':

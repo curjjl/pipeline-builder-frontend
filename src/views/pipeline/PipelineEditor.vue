@@ -200,11 +200,11 @@
 
     <!-- Main content area -->
     <div class="main-content">
-      <!-- Node Palette - Hidden for expanded canvas area -->
-      <!-- <NodePalette
+      <!-- Node Palette -->
+      <NodePalette
         @node-drag-start="handleNodeDragStart"
         @node-drag-end="handleNodeDragEnd"
-      /> -->
+      />
 
       <!-- Canvas area -->
       <div class="canvas-area"
@@ -790,7 +790,7 @@ import {
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { getAllDatasets, getDatasetMeta, getDatasetData } from '@/mock/datasets'
+import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
@@ -987,23 +987,27 @@ function handleAddData({ key }: { key: string }) {
 
 // Handle imported data
 function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
+  // Add to dataset management system
+  const datasetName = name.replace(/\.(csv|json)$/i, '')
+  const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
+  const datasetId = addUserDataset(datasetName, data, columnNames)
+
+  // Create dataset node
   const node: Node = {
     id: `node-${nodeIdCounter++}`,
     type: 'dataset',
-    name: name.replace(/\.(csv|json)$/i, ''),
+    name: datasetName,
     x: 100 + Math.random() * 100,
     y: 100 + Math.random() * 100,
     data: {
-      datasetId: `imported-${Date.now()}`,
-      columnCount: columns.length,
-      rowCount: data.length,
-      columns,
-      importedData: data
+      datasetId: datasetId, // Use the generated dataset ID
+      columnCount: columnNames.length,
+      rowCount: data.length
     }
   }
 
   pipelineStore.addNode(node)
-  message.success(`Imported ${data.length} rows with ${columns.length} columns`)
+  message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
 }
 
 // Add transform node
