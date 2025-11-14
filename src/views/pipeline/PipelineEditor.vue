@@ -755,6 +755,14 @@
       :default-file-name="exportFileName"
       @exported="handleDataExported"
     />
+
+    <!-- Code Editor Modal -->
+    <CodeEditorModal
+      v-model:open="showCodeEditor"
+      :initialCode="codeEditorInitialCode"
+      :initialLanguage="codeEditorLanguage"
+      @save="handleCodeSave"
+    />
   </div>
 </template>
 
@@ -820,6 +828,7 @@ import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import DataExportModal from '@/components/pipeline/DataExportModal.vue'
+import CodeEditorModal from '@/components/pipeline/CodeEditorModal.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
 
@@ -975,6 +984,12 @@ const exportData = ref<any[]>([])
 const exportColumns = ref<string[]>([])
 const exportFileName = ref('export')
 
+// Code editor dialog
+const showCodeEditor = ref(false)
+const codeEditorLanguage = ref<'sql' | 'python' | 'javascript'>('python')
+const codeEditorInitialCode = ref('')
+const codeEditorNodeId = ref<string | null>(null)
+
 // Node ID counter
 let nodeIdCounter = 1
 
@@ -1067,6 +1082,43 @@ async function handleExportNode(nodeId?: string) {
 function handleDataExported(fileName: string) {
   // Optional: Track export analytics or perform cleanup
   console.log('Exported:', fileName)
+}
+
+// Handle code editor
+function handleOpenCodeEditor(nodeId: string) {
+  const node = pipelineStore.getNodeById(nodeId)
+  if (!node) return
+
+  codeEditorNodeId.value = nodeId
+
+  // Get existing code from node data if available
+  const nodeData = node.data as any
+  codeEditorInitialCode.value = nodeData?.code || '# Write your Python code here\n\ndef transform(df):\n    # df is a pandas DataFrame\n    # Return the transformed DataFrame\n    return df\n'
+  codeEditorLanguage.value = nodeData?.language || 'python'
+
+  showCodeEditor.value = true
+}
+
+function handleCodeSave(code: string, language: string) {
+  if (!codeEditorNodeId.value) return
+
+  const node = pipelineStore.getNodeById(codeEditorNodeId.value)
+  if (!node) return
+
+  // Update node data with the code
+  const updatedData = {
+    ...node.data,
+    code,
+    language,
+    configured: true
+  }
+
+  pipelineStore.updateNode(codeEditorNodeId.value, {
+    data: updatedData
+  })
+
+  message.success(t('codeEditor.saved'))
+  codeEditorNodeId.value = null
 }
 
 // Add transform node
@@ -1213,6 +1265,10 @@ function handleNodeDoubleClick(node: Node) {
     rightPanelVisible.value = true
 
     message.info('Join config panel opened')
+  } else if (node.type === 'function') {
+    // If it's a function node, open code editor
+    console.log('Opening Code Editor')
+    handleOpenCodeEditor(node.id)
   } else if (node.type === 'dataset') {
     // For dataset nodes, show data preview
     bottomPanelVisible.value = true
