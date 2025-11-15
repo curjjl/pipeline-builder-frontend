@@ -226,6 +226,7 @@
           @node:click="handleNodeClick"
           @node:dblclick="handleNodeDoubleClick"
           @node:contextmenu="handleNodeContextMenu"
+          @node:moved="handleNodeMoved"
           @edge:added="handleEdgeAdded"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
@@ -767,7 +768,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
@@ -814,6 +815,7 @@ import {
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
+import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand } from '@/stores/modules/history'
 import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
@@ -838,6 +840,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const pipelineStore = usePipelineStore()
+const historyStore = useHistoryStore()
 
 // Basic state
 const pipelineName = ref('My Pipeline')
@@ -971,9 +974,9 @@ const cleanMenuTargetNode = ref<Node | null>(null)
 const draggingNodeType = ref<string | null>(null)
 const draggingNodeData = ref<any>(null)
 
-// Undo/Redo
-const canUndo = ref(false)
-const canRedo = ref(false)
+// Undo/Redo - computed from history store
+const canUndo = computed(() => historyStore.canUndo)
+const canRedo = computed(() => historyStore.canRedo)
 
 // Import dialog
 const showImportDialog = ref(false)
@@ -1019,7 +1022,9 @@ function handleAddData({ key }: { key: string }) {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success(`Added dataset: ${dataset.displayName} (${dataset.rowCount} rows, ${dataset.columns.length} columns)`)
 }
 
@@ -1044,7 +1049,9 @@ function handleDataImport({ data, columns, name }: { data: any[], columns: any[]
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
 }
 
@@ -1135,7 +1142,9 @@ function handleAddTransformNode() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Transform node - Double click to configure')
 
   // Auto-open config panel after adding
@@ -1163,7 +1172,9 @@ function handleAddJoin() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Join node')
 }
 
@@ -1180,7 +1191,9 @@ function handleAddOutputNode() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Output node')
 }
 
@@ -1280,6 +1293,28 @@ function handleNodeDoubleClick(node: Node) {
   }
 }
 
+// Node moved (for undo/redo support)
+let nodeMoveStartPositions = new Map<string, { x: number; y: number }>()
+
+function handleNodeMoved({ node, position }: { node: Node; position: { x: number; y: number } }) {
+  // Get the old position from the store
+  const storeNode = pipelineStore.getNodeById(node.id)
+  if (!storeNode) return
+
+  const oldPosition = { x: storeNode.x, y: storeNode.y }
+
+  // Only create command if position actually changed
+  if (oldPosition.x !== position.x || oldPosition.y !== position.y) {
+    const command = new MoveNodeCommand(
+      node.id,
+      oldPosition,
+      position,
+      pipelineStore
+    )
+    historyStore.executeCommand(command)
+  }
+}
+
 // Node context menu
 function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent }) {
   // 阻止默认右键菜单
@@ -1366,7 +1401,9 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
 
 // Edge added
 function handleEdgeAdded(edge: Edge) {
-  pipelineStore.addEdge(edge)
+  // Use command pattern for undo/redo support
+  const command = new AddEdgeCommand(edge, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Nodes connected')
 }
 
@@ -1537,13 +1574,22 @@ function handleContextMenuSelect(key: string) {
       break
     case 'delete':
       if (target.source) {
-        // Edge
-        pipelineStore.removeEdge(target.id)
-        message.success('Connection deleted')
+        // Edge - use command pattern for undo/redo support
+        const edge = edges.value.find(e => e.id === target.id)
+        if (edge) {
+          const command = new DeleteEdgeCommand(edge, pipelineStore)
+          historyStore.executeCommand(command)
+          message.success('Connection deleted')
+        }
       } else {
-        // Node
-        pipelineStore.removeNode(target.id)
-        message.success('Node deleted')
+        // Node - use command pattern for undo/redo support
+        const node = nodes.value.find(n => n.id === target.id)
+        if (node) {
+          const relatedEdges = pipelineStore.getEdgesByNode(target.id)
+          const command = new DeleteNodeCommand(node, relatedEdges, pipelineStore)
+          historyStore.executeCommand(command)
+          message.success('Node deleted')
+        }
       }
       break
     default:
@@ -1563,7 +1609,9 @@ function duplicateNode(node: Node) {
     x: node.x + 50,
     y: node.y + 50
   }
-  pipelineStore.addNode(newNode)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(newNode, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Node duplicated')
 }
 
@@ -1593,7 +1641,14 @@ function handleRenameConfirm() {
   const oldName = renameTargetNode.value.name
 
   if (newName !== oldName) {
-    pipelineStore.updateNode(renameTargetNode.value.id, { name: newName })
+    // Use command pattern for undo/redo support
+    const command = new UpdateNodeLabelCommand(
+      renameTargetNode.value.id,
+      oldName,
+      newName,
+      pipelineStore
+    )
+    historyStore.executeCommand(command)
     message.success(`Node renamed from "${oldName}" to "${newName}"`)
   }
 
@@ -1911,14 +1966,29 @@ function handleDeleteSelected() {
     return node?.name || id
   }).join(', ')
 
-  // Delete nodes
-  selectedIds.forEach(id => {
+  // Delete nodes using command pattern for undo/redo support
+  const commands = selectedIds.map(id => {
+    const node = nodes.value.find(n => n.id === id)
+    if (!node) return null
+
+    // Get related edges before deleting
+    const relatedEdges = pipelineStore.getEdgesByNode(id)
+
+    // Remove cell from graph
     const cell = graph.getCellById(id)
     if (cell) {
       cell.remove()
     }
-    pipelineStore.removeNode(id)
-  })
+
+    return new DeleteNodeCommand(node, relatedEdges, pipelineStore)
+  }).filter(cmd => cmd !== null) as any[]
+
+  // Use BatchCommand if multiple nodes selected
+  if (commands.length > 0) {
+    const { BatchCommand } = await import('@/stores/modules/history')
+    const batchCommand = new BatchCommand(commands, `Delete ${commands.length} node(s)`)
+    historyStore.executeCommand(batchCommand)
+  }
 
   pipelineStore.setSelectedNodes([])
   message.success(`Deleted ${selectedIds.length} node(s): ${nodeNames}`)
@@ -2077,12 +2147,30 @@ function handleMoreAction({ key }: { key: string }) {
 
 // Undo
 function handleUndo() {
-  message.info('Undo')
+  if (historyStore.canUndo) {
+    historyStore.undo()
+    // Force graph refresh
+    nextTick(() => {
+      if (canvasRef.value) {
+        canvasRef.value.refreshGraph()
+      }
+    })
+    message.success(t('common.actions.undo'))
+  }
 }
 
 // Redo
 function handleRedo() {
-  message.info('Redo')
+  if (historyStore.canRedo) {
+    historyStore.redo()
+    // Force graph refresh
+    nextTick(() => {
+      if (canvasRef.value) {
+        canvasRef.value.refreshGraph()
+      }
+    })
+    message.success(t('common.actions.redo'))
+  }
 }
 
 // Run pipeline
@@ -2277,7 +2365,9 @@ function handleCanvasDrop(event: DragEvent) {
   }
 
   if (newNode) {
-    pipelineStore.addNode(newNode)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(newNode, pipelineStore)
+    historyStore.executeCommand(command)
     message.success(`${nodeData.name} node added`)
   }
 
@@ -2303,12 +2393,28 @@ function handleAddDataAtPosition(x: number, y: number) {
       }
     }
 
-    pipelineStore.addNode(node)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(node, pipelineStore)
+    historyStore.executeCommand(command)
     message.success(`Added dataset: ${dataset.displayName}`)
   }
 }
 
 // ==================== Lifecycle ====================
+
+// Keyboard shortcuts for undo/redo
+const handleKeyboardShortcuts = (e: KeyboardEvent) => {
+  // Ctrl+Z or Cmd+Z for Undo
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    handleUndo()
+  }
+  // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z for Redo
+  else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    e.preventDefault()
+    handleRedo()
+  }
+}
 
 onMounted(async () => {
   const pipelineId = route.params.id as string
@@ -2334,11 +2440,15 @@ onMounted(async () => {
       updatedAt: new Date().toISOString()
     })
   }
+
+  // Add keyboard shortcuts
+  document.addEventListener('keydown', handleKeyboardShortcuts)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResize)
+  document.removeEventListener('keydown', handleKeyboardShortcuts)
 })
 </script>
 

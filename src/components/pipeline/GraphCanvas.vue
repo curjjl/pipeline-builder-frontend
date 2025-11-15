@@ -918,6 +918,22 @@ const autoLayout = () => {
   }, 100)
 }
 
+// Refresh graph from current props (useful for undo/redo)
+const refreshGraph = () => {
+  if (!graph) return
+
+  // Clear existing cells
+  graph.clearCells()
+
+  // Re-add all nodes and edges from props
+  if (props.nodes.length > 0) {
+    props.nodes.forEach(addNode)
+  }
+  if (props.edges.length > 0) {
+    props.edges.forEach(addEdge)
+  }
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -926,7 +942,8 @@ defineExpose({
   getNode,
   updateNodeData,
   getGraph: () => graph,
-  autoLayout
+  autoLayout,
+  refreshGraph
 })
 </script>
 
