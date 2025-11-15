@@ -3,6 +3,30 @@
  * 支持各种数据清洗、转换、聚合操作
  */
 
+import {
+  validateDataNotEmpty,
+  validateColumnExists,
+  validateColumnsExist,
+  validateColumnIsNumeric,
+  validateColumnsAreNumeric,
+  validateColumnIsDate,
+  validateRequired,
+  validateRequiredString,
+  validateNumber,
+  validateNumberInRange,
+  validatePositiveInteger,
+  validateNonNegativeInteger,
+  validateArray,
+  validateNonEmptyArray,
+  validateEnum,
+  validateRegex,
+  validateColumnNotExists,
+  validateOutputColumns,
+  validateConditionExpression,
+  validateDateFormat,
+  ValidationError
+} from './transform-validation'
+
 export type TransformType =
   // 基础操作
   | 'filter'           // 筛选
@@ -335,6 +359,12 @@ export function applyTransforms(data: any[], transforms: Transform[]): Transform
  * params: { column: string, operator: string, value: any }
  */
 function applyFilter(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequired('column', params?.column)
+  validateRequired('operator', params?.operator)
+  validateColumnExists(data, params.column)
+
   const { column, operator, value } = params
 
   return data.filter(row => {
@@ -382,6 +412,11 @@ function applyFilter(data: any[], params: any): any[] {
  * params: { columns: string[] }
  */
 function applySelect(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateNonEmptyArray('columns', params?.columns)
+  validateColumnsExist(data, params.columns)
+
   const { columns } = params
 
   return data.map(row => {
@@ -400,6 +435,13 @@ function applySelect(data: any[], params: any): any[] {
  * params: { oldName: string, newName: string }
  */
 function applyRename(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('oldName', params?.oldName)
+  validateRequiredString('newName', params?.newName)
+  validateColumnExists(data, params.oldName)
+  // Don't check if newName exists - renaming can overwrite
+
   const { oldName, newName } = params
 
   return data.map(row => {
@@ -565,6 +607,14 @@ function applyGroupBy(data: any[], params: any): any[] {
  * params: { column: string, order: 'asc' | 'desc' }
  */
 function applySort(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  if (params.order) {
+    validateEnum('order', params.order, ['asc', 'desc'])
+  }
+
   const { column, order = 'asc' } = params
 
   return [...data].sort((a, b) => {
@@ -584,6 +634,13 @@ function applySort(data: any[], params: any): any[] {
  * params: { columns?: string[] } // 如果不指定列，则对所有列去重
  */
 function applyDistinct(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  if (params?.columns) {
+    validateNonEmptyArray('columns', params.columns)
+    validateColumnsExist(data, params.columns)
+  }
+
   const { columns } = params || {}
 
   const seen = new Set<string>()
@@ -608,6 +665,11 @@ function applyDistinct(data: any[], params: any): any[] {
  * params: { columns: string[] }
  */
 function applyRemoveColumn(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateNonEmptyArray('columns', params?.columns)
+  validateColumnsExist(data, params.columns)
+
   const { columns } = params
 
   return data.map(row => {
@@ -624,6 +686,12 @@ function applyRemoveColumn(data: any[], params: any): any[] {
  * params: { column: string, value: any }
  */
 function applyFillNull(data: any[], params: any): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  validateRequired('value', params?.value)
+
   const { column, value } = params
 
   return data.map(row => {
@@ -1035,6 +1103,11 @@ export function applyTitleCase(data: any[], params: {
  * Uppercase - 转大写
  */
 function applyUppercase(data: any[], params: { column: string }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+
   const { column } = params
   return data.map(row => ({
     ...row,
@@ -1046,6 +1119,11 @@ function applyUppercase(data: any[], params: { column: string }): any[] {
  * Lowercase - 转小写
  */
 function applyLowercase(data: any[], params: { column: string }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+
   const { column } = params
   return data.map(row => ({
     ...row,
@@ -1061,6 +1139,12 @@ function applyConcatenate(data: any[], params: {
   outputColumn: string
   separator?: string
 }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateNonEmptyArray('columns', params?.columns)
+  validateColumnsExist(data, params.columns)
+  validateRequiredString('outputColumn', params?.outputColumn)
+
   const { columns, outputColumn, separator = '' } = params
   return data.map(row => ({
     ...row,
@@ -1189,6 +1273,15 @@ function applyRound(data: any[], params: {
   column: string
   decimals?: number
 }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  validateColumnIsNumeric(data, params.column)
+  if (params.decimals !== undefined) {
+    validateNonNegativeInteger('decimals', params.decimals)
+  }
+
   const { column, decimals = 0 } = params
   const multiplier = Math.pow(10, decimals)
   return data.map(row => ({
@@ -1201,6 +1294,12 @@ function applyRound(data: any[], params: {
  * Floor - 向下取整
  */
 function applyFloor(data: any[], params: { column: string }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  validateColumnIsNumeric(data, params.column)
+
   const { column } = params
   return data.map(row => ({
     ...row,
@@ -1212,6 +1311,12 @@ function applyFloor(data: any[], params: { column: string }): any[] {
  * Ceiling - 向上取整
  */
 function applyCeiling(data: any[], params: { column: string }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  validateColumnIsNumeric(data, params.column)
+
   const { column } = params
   return data.map(row => ({
     ...row,
@@ -1223,6 +1328,12 @@ function applyCeiling(data: any[], params: { column: string }): any[] {
  * Absolute - 绝对值
  */
 function applyAbsolute(data: any[], params: { column: string }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column', params?.column)
+  validateColumnExists(data, params.column)
+  validateColumnIsNumeric(data, params.column)
+
   const { column } = params
   return data.map(row => ({
     ...row,
@@ -1238,6 +1349,14 @@ function applyAdd(data: any[], params: {
   column2: string
   outputColumn: string
 }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column1', params?.column1)
+  validateRequiredString('column2', params?.column2)
+  validateRequiredString('outputColumn', params?.outputColumn)
+  validateColumnsExist(data, [params.column1, params.column2])
+  validateColumnsAreNumeric(data, [params.column1, params.column2])
+
   const { column1, column2, outputColumn } = params
   return data.map(row => ({
     ...row,
@@ -1253,6 +1372,14 @@ function applySubtract(data: any[], params: {
   column2: string
   outputColumn: string
 }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column1', params?.column1)
+  validateRequiredString('column2', params?.column2)
+  validateRequiredString('outputColumn', params?.outputColumn)
+  validateColumnsExist(data, [params.column1, params.column2])
+  validateColumnsAreNumeric(data, [params.column1, params.column2])
+
   const { column1, column2, outputColumn } = params
   return data.map(row => ({
     ...row,
@@ -1268,6 +1395,14 @@ function applyMultiply(data: any[], params: {
   column2: string
   outputColumn: string
 }): any[] {
+  // Validation
+  validateDataNotEmpty(data)
+  validateRequiredString('column1', params?.column1)
+  validateRequiredString('column2', params?.column2)
+  validateRequiredString('outputColumn', params?.outputColumn)
+  validateColumnsExist(data, [params.column1, params.column2])
+  validateColumnsAreNumeric(data, [params.column1, params.column2])
+
   const { column1, column2, outputColumn } = params
   return data.map(row => ({
     ...row,

@@ -815,7 +815,7 @@ import {
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand } from '@/stores/modules/history'
+import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
 import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
@@ -1985,7 +1985,6 @@ function handleDeleteSelected() {
 
   // Use BatchCommand if multiple nodes selected
   if (commands.length > 0) {
-    const { BatchCommand } = await import('@/stores/modules/history')
     const batchCommand = new BatchCommand(commands, `Delete ${commands.length} node(s)`)
     historyStore.executeCommand(batchCommand)
   }
