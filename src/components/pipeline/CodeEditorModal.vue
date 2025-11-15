@@ -128,8 +128,16 @@ import {
 } from '@ant-design/icons-vue'
 import { useI18n } from 'vue-i18n'
 import * as monaco from 'monaco-editor'
+import { initializeMonaco } from '@/utils/monaco-config'
 
 const { t } = useI18n()
+
+// 初始化 Monaco Editor（只执行一次）
+let monacoInitialized = false
+if (!monacoInitialized) {
+  initializeMonaco()
+  monacoInitialized = true
+}
 
 interface Props {
   open?: boolean
@@ -227,26 +235,7 @@ watch(() => props.open, (newVal) => {
 function initializeEditor() {
   if (!editorRef.value) return
 
-  // Configure Monaco environment
-  monaco.editor.defineTheme('palantir-light', {
-    base: 'vs',
-    inherit: true,
-    rules: [
-      { token: 'keyword', foreground: '0000FF', fontStyle: 'bold' },
-      { token: 'string', foreground: 'A31515' },
-      { token: 'comment', foreground: '008000', fontStyle: 'italic' },
-      { token: 'number', foreground: '098658' }
-    ],
-    colors: {
-      'editor.background': '#FFFFFF',
-      'editor.foreground': '#000000',
-      'editor.lineHighlightBackground': '#F8F9FA',
-      'editor.selectionBackground': '#ADD6FF',
-      'editorLineNumber.foreground': '#98A2B3'
-    }
-  })
-
-  // Create editor instance
+  // Create editor instance (theme already defined in monaco-config.ts)
   editorInstance.value = monaco.editor.create(editorRef.value, {
     value: props.initialCode || '',
     language: language.value,
