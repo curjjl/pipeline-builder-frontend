@@ -497,6 +497,126 @@
         </a-button>
       </div>
 
+      <!-- Distinct Configuration -->
+      <div v-else-if="transformConfig.type === 'distinct'" class="transform-type-config">
+        <h4 class="config-title">Remove Duplicates</h4>
+        <p class="config-desc">Keep only unique rows based on selected columns</p>
+
+        <label class="section-label">Select Columns (optional):</label>
+        <a-select
+          v-model:value="distinctConfig.columns"
+          mode="multiple"
+          placeholder="Leave empty to check all columns"
+          style="width: 100%; margin-bottom: 12px"
+        >
+          <a-select-option
+            v-for="col in availableColumns"
+            :key="col.name"
+            :value="col.name"
+          >
+            {{ col.name }}
+          </a-select-option>
+        </a-select>
+
+        <a-alert
+          message="If no columns selected, entire rows will be compared for uniqueness"
+          type="info"
+          show-icon
+        />
+      </div>
+
+      <!-- Fill Null Configuration -->
+      <div v-else-if="transformConfig.type === 'fillNull'" class="transform-type-config">
+        <h4 class="config-title">Fill Null Values</h4>
+        <p class="config-desc">Replace null or empty values with a specified value</p>
+
+        <label class="section-label">Select Column:</label>
+        <a-select
+          v-model:value="fillNullConfig.column"
+          placeholder="Select column"
+          style="width: 100%; margin-bottom: 16px"
+        >
+          <a-select-option
+            v-for="col in availableColumns"
+            :key="col.name"
+            :value="col.name"
+          >
+            {{ col.name }}
+          </a-select-option>
+        </a-select>
+
+        <label class="section-label">Fill Value:</label>
+        <a-input
+          v-model:value="fillNullConfig.value"
+          placeholder="Enter replacement value"
+        />
+      </div>
+
+      <!-- Add Column Configuration -->
+      <div v-else-if="transformConfig.type === 'addColumn'" class="transform-type-config">
+        <h4 class="config-title">Add Column</h4>
+        <p class="config-desc">Create a new column with calculated values</p>
+
+        <label class="section-label">Column Name:</label>
+        <a-input
+          v-model:value="addColumnConfig.columnName"
+          placeholder="e.g., total_price"
+          style="margin-bottom: 16px"
+        />
+
+        <label class="section-label">Expression:</label>
+        <a-textarea
+          v-model:value="addColumnConfig.expression"
+          placeholder="e.g., row.price * row.quantity or 'Fixed Value'"
+          :rows="3"
+          style="margin-bottom: 16px"
+        />
+
+        <label class="section-label">Data Type:</label>
+        <a-select
+          v-model:value="addColumnConfig.dataType"
+          style="width: 100%"
+        >
+          <a-select-option value="auto">Auto Detect</a-select-option>
+          <a-select-option value="string">String</a-select-option>
+          <a-select-option value="number">Number</a-select-option>
+          <a-select-option value="boolean">Boolean</a-select-option>
+        </a-select>
+
+        <a-alert
+          message="Use 'row.columnName' to reference column values (e.g., row.price * 1.1)"
+          type="info"
+          show-icon
+          style="margin-top: 16px"
+        />
+      </div>
+
+      <!-- Remove Columns Configuration -->
+      <div v-else-if="transformConfig.type === 'removeColumns'" class="transform-type-config">
+        <h4 class="config-title">Remove Columns</h4>
+        <p class="config-desc">Delete selected columns from the dataset</p>
+
+        <label class="section-label">Select Columns to Remove:</label>
+        <a-select
+          v-model:value="removeColumnsConfig.columns"
+          mode="multiple"
+          placeholder="Select columns to delete"
+          style="width: 100%"
+        >
+          <a-select-option
+            v-for="col in availableColumns"
+            :key="col.name"
+            :value="col.name"
+          >
+            {{ col.name }}
+          </a-select-option>
+        </a-select>
+
+        <div class="selection-summary" v-if="removeColumnsConfig.columns.length > 0">
+          {{ removeColumnsConfig.columns.length }} column(s) will be removed
+        </div>
+      </div>
+
       <!-- Uppercase Configuration -->
       <div v-else-if="transformConfig.type === 'uppercase'" class="transform-type-config">
         <h4 class="config-title">Convert to Uppercase</h4>
@@ -721,7 +841,7 @@
       <!-- Parse JSON Configuration -->
       <div v-else-if="transformConfig.type === 'parseJson'" class="transform-type-config">
         <h4 class="config-title">Parse JSON</h4>
-        <p class="config-desc">Parse JSON strings into separate columns</p>
+        <p class="config-desc">Parse JSON strings and extract specific fields</p>
 
         <label class="section-label">Select Column with JSON Data:</label>
         <a-select
@@ -738,10 +858,17 @@
           </a-select-option>
         </a-select>
 
-        <label class="section-label">Output Column Prefix:</label>
+        <label class="section-label">Output Columns (comma-separated field names):</label>
         <a-input
-          v-model:value="parseJsonConfig.prefix"
-          placeholder="e.g., json_"
+          v-model:value="parseJsonConfig.outputColumnsStr"
+          placeholder="e.g., name, email, phone"
+        />
+
+        <a-alert
+          message="Specify the JSON field names you want to extract"
+          type="info"
+          show-icon
+          style="margin-top: 12px"
         />
       </div>
 
@@ -775,7 +902,17 @@
       <!-- Trim Whitespace Configuration -->
       <div v-else-if="transformConfig.type === 'trimWhitespace'" class="transform-type-config">
         <h4 class="config-title">Trim Whitespace</h4>
-        <p class="config-desc">Remove leading and trailing whitespace from text</p>
+        <p class="config-desc">Remove whitespace from text</p>
+
+        <label class="section-label">Trim Mode:</label>
+        <a-select
+          v-model:value="trimWhitespaceConfig.mode"
+          style="width: 100%; margin-bottom: 16px"
+        >
+          <a-select-option value="both">Both (Start and End)</a-select-option>
+          <a-select-option value="start">Start Only</a-select-option>
+          <a-select-option value="end">End Only</a-select-option>
+        </a-select>
 
         <label class="section-label">Select Columns:</label>
         <a-select
@@ -1758,6 +1895,26 @@ const sortConfig = ref([
   { column: '', order: 'asc' }
 ])
 
+// Basic operation configs
+const distinctConfig = ref({
+  columns: [] as string[]
+})
+
+const fillNullConfig = ref({
+  column: '',
+  value: ''
+})
+
+const addColumnConfig = ref({
+  columnName: '',
+  expression: '',
+  dataType: 'auto'
+})
+
+const removeColumnsConfig = ref({
+  columns: [] as string[]
+})
+
 // String transform configs
 const uppercaseConfig = ref({
   column: ''
@@ -1799,7 +1956,7 @@ const padStringConfig = ref({
 
 const parseJsonConfig = ref({
   column: '',
-  prefix: 'json_'
+  outputColumnsStr: ''
 })
 
 const parseUrlConfig = ref({
@@ -1808,6 +1965,7 @@ const parseUrlConfig = ref({
 })
 
 const trimWhitespaceConfig = ref({
+  mode: 'both',
   columns: [] as string[]
 })
 
@@ -2075,6 +2233,25 @@ async function handleApply() {
         config.sorts = sortConfig.value.filter(s => s.column)
         break
 
+      // Basic operations
+      case 'distinct':
+        if (distinctConfig.value.columns.length > 0) {
+          config.columns = distinctConfig.value.columns
+        }
+        break
+      case 'fillNull':
+        config.column = fillNullConfig.value.column
+        config.value = fillNullConfig.value.value
+        break
+      case 'addColumn':
+        config.columnName = addColumnConfig.value.columnName
+        config.expression = addColumnConfig.value.expression
+        config.dataType = addColumnConfig.value.dataType
+        break
+      case 'removeColumns':
+        config.columns = removeColumnsConfig.value.columns
+        break
+
       // String transforms
       case 'uppercase':
         config.column = uppercaseConfig.value.column
@@ -2092,7 +2269,7 @@ async function handleApply() {
         break
       case 'extract':
         config.column = extractConfig.value.column
-        config.start = extractConfig.value.start
+        config.startIndex = extractConfig.value.start
         config.length = extractConfig.value.length
         config.outputColumn = extractConfig.value.outputColumn
         break
@@ -2105,17 +2282,21 @@ async function handleApply() {
         config.column = padStringConfig.value.column
         config.length = padStringConfig.value.length
         config.padChar = padStringConfig.value.padChar
-        config.side = padStringConfig.value.side
+        config.direction = padStringConfig.value.side
         break
       case 'parseJson':
         config.column = parseJsonConfig.value.column
-        config.prefix = parseJsonConfig.value.prefix
+        config.outputColumns = parseJsonConfig.value.outputColumnsStr
+          .split(',')
+          .map(s => s.trim())
+          .filter(s => s.length > 0)
         break
       case 'parseUrl':
         config.column = parseUrlConfig.value.column
-        config.prefix = parseUrlConfig.value.prefix
+        config.outputPrefix = parseUrlConfig.value.prefix
         break
       case 'trimWhitespace':
+        config.mode = trimWhitespaceConfig.value.mode
         config.columns = trimWhitespaceConfig.value.columns
         break
       case 'splitColumns':
