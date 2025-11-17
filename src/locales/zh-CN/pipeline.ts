@@ -45,7 +45,10 @@ export default {
       saved: '管道保存成功',
       saveError: '管道保存失败',
       deployed: '管道部署成功',
-      deployError: '管道部署失败'
+      deployError: '管道部署失败',
+      selectNode: '请选择要导出的节点',
+      noDataToExport: '没有可导出的数据',
+      exportError: '导出失败：{error}'
     }
   },
   outputs: {
