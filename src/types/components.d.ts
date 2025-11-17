@@ -69,6 +69,7 @@ declare module 'vue' {
     NodePalette: typeof import('./../components/pipeline/NodePalette.vue')['default']
     NodeSearchPanel: typeof import('./../components/pipeline/NodeSearchPanel.vue')['default']
     NodeToolbar: typeof import('./../components/pipeline/NodeToolbar.vue')['default']
+    PerformanceDashboard: typeof import('./../components/common/PerformanceDashboard.vue')['default']
     PythonTransform: typeof import('./../components/pipeline/transforms/PythonTransform.vue')['default']
     RemoveColumnsTransform: typeof import('./../components/pipeline/transforms/RemoveColumnsTransform.vue')['default']
     RenameColumnsTransform: typeof import('./../components/pipeline/transforms/RenameColumnsTransform.vue')['default']
