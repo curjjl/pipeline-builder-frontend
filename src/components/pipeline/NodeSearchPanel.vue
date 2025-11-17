@@ -26,8 +26,7 @@
         size="large"
         allow-clear
         @input="handleSearch"
-        @keydown.enter="jumpToNext"
-        @keydown.esc="handleClear"
+        @keydown="handleKeydown"
         class="search-input"
       >
         <template #prefix>
@@ -160,6 +159,15 @@ const options = ref<SearchOptions>({
   wholeWord: false,
   regex: false
 })
+
+// 处理键盘事件
+function handleKeydown(event: KeyboardEvent) {
+  if (event.key === 'Enter') {
+    jumpToNext()
+  } else if (event.key === 'Escape') {
+    handleClear()
+  }
+}
 
 // 搜索节点
 function handleSearch() {
