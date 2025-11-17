@@ -79,7 +79,7 @@ class Logger {
     return this.logs.filter(log =>
       log.message.toLowerCase().includes(lowerQuery) ||
       log.nodeName?.toLowerCase().includes(lowerQuery) ||
-      JSON.stringify(log.context).toLowerCase().includes(lowerQuery)
+      (log.context && JSON.stringify(log.context).toLowerCase().includes(lowerQuery))
     )
   }
 
