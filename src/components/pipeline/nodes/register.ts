@@ -381,19 +381,23 @@ export function registerJoinNode() {
 }
 
 /**
- * Register Output Node
+ * Register Output Node - Palantir Official Style
  */
 export function registerOutputNode() {
   Graph.registerNode(
     'output-node',
     {
       inherit: 'rect',
-      width: 180,
-      height: 64,
+      width: 240,
+      height: 72,
       markup: [
         {
           tagName: 'rect',
           selector: 'body'
+        },
+        {
+          tagName: 'rect',
+          selector: 'icon-bg'
         },
         {
           tagName: 'image',
@@ -413,6 +417,8 @@ export function registerOutputNode() {
           strokeWidth: 1,
           stroke: '#D0D5DD',
           fill: '#FFFFFF',
+          refWidth: 1,
+          refHeight: 1,
           rx: 6,
           ry: 6,
           filter: {
@@ -420,44 +426,51 @@ export function registerOutputNode() {
             args: {
               dx: 0,
               dy: 1,
-              blur: 3,
-              color: 'rgba(0, 0, 0, 0.1)'
+              blur: 4,
+              color: 'rgba(16, 24, 40, 0.1)'
             }
           }
         },
-        icon: {
+        'icon-bg': {
           x: 12,
-          y: 20,
+          y: 12,
+          width: 32,
+          height: 32,
+          fill: '#F3E8FF',
+          rx: 4,
+          ry: 4
+        },
+        icon: {
+          'xlink:href': 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMyAzSDIxVjE3SDMiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTcgMjFMMTcgMjEiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNMTIgMTdWMjEiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjwvc3ZnPg==',
           width: 20,
           height: 20,
-          xlinkHref: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjAiIGhlaWdodD0iMjAiIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8cGF0aCBkPSJNMyAzSDIxVjE3SDMiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+CiAgPHBhdGggZD0iTTcgMjFMMTcgMjEiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KICA8cGF0aCBkPSJNMTIgMTdWMjEiIHN0cm9rZT0iIzhCNUNGNiIgc3Ryb2tlLXdpZHRoPSIyIi8+Cjwvc3ZnPg=='
+          x: 18,
+          y: 18
         },
         label: {
-          x: 38,
-          y: 26,
-          fontSize: 13,
-          fontWeight: 500,
-          fill: '#212121',
           text: 'Output',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          refX: 52,
+          refY: 22,
+          fill: '#101828',
+          fontSize: 14,
+          fontWeight: 600,
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         },
         meta: {
-          x: 38,
-          y: 42,
-          fontSize: 11,
-          fill: '#5F6368',
           text: 'Save to dataset',
-          textAnchor: 'start',
-          textVerticalAnchor: 'middle',
+          refX: 52,
+          refY: 46,
+          fill: '#667085',
+          fontSize: 12,
+          'text-anchor': 'start',
           fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
         }
       },
       ports: {
         groups: {
           in: {
-            position: { name: 'left', args: { y: 32 } },
+            position: { name: 'left', args: { y: 36 } },
             attrs: {
               circle: {
                 r: 6,
