@@ -1,5 +1,13 @@
 <template>
-  <div ref="containerRef" class="graph-canvas"></div>
+  <div ref="containerRef" class="graph-canvas">
+    <!-- 选中节点计数指示器 -->
+    <transition name="fade">
+      <div v-if="selectedCount > 0" class="selection-indicator">
+        <span class="selection-count">{{ selectedCount }}</span>
+        <span class="selection-label">{{ selectedCount === 1 ? 'item' : 'items' }} selected</span>
+      </div>
+    </transition>
+  </div>
 </template>
 
 <script setup lang="ts">
@@ -43,6 +51,9 @@ const emit = defineEmits<{
 }>()
 
 const containerRef = ref<HTMLDivElement>()
+const selectedCount = ref(0)
+const pasteCount = ref(0)
+const lastCopiedCells = ref<any[]>([])
 let graph: Graph | null = null
 
 // 初始化图编辑器
@@ -209,14 +220,24 @@ const initGraph = () => {
       new Selection({
         enabled: true,
         multiple: true,
-        rubberband: true,
         movable: true,
         showNodeSelectionBox: true,
         modifiers: 'shift',
         rubberEdge: true,
         rubberNode: true,
         strict: false,
-        selectCellOnMoved: true
+        selectCellOnMoved: true,
+        // 增强视觉效果
+        className: 'x6-selection-enhanced',
+        rubberband: {
+          enabled: true,
+          modifiers: 'shift',
+          className: 'x6-rubberband-enhanced'
+        },
+        // 过滤器：只选择可见的节点和边
+        filter: (cell) => {
+          return cell.isVisible()
+        }
       })
     )
     .use(
@@ -313,6 +334,7 @@ const bindEvents = () => {
   graph.on('blank:click', () => {
     emit('canvas:click')
     graph?.cleanSelection()
+    pasteCount.value = 0  // 重置粘贴计数
   })
 
   // 连接创建
@@ -429,6 +451,11 @@ const bindEvents = () => {
       node.setPortProp(port.id!, 'attrs/circle/stroke', '#5F6368')
       node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2)
     })
+  })
+
+  // 选择变化事件 - 更新选中计数
+  graph.on('selection:changed', ({ selected }) => {
+    selectedCount.value = selected.length
   })
 
   // 端口悬停高亮效果
@@ -549,6 +576,8 @@ const bindEvents = () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
       graph!.copy(cells)
+      lastCopiedCells.value = cells
+      pasteCount.value = 0  // 重置粘贴计数
 
       // 触发复制事件
       const nodeCount = cells.filter(cell => cell.isNode()).length
@@ -562,9 +591,39 @@ const bindEvents = () => {
   // 粘贴
   graph.bindKey(['ctrl+v', 'meta+v'], () => {
     if (!graph!.isClipboardEmpty()) {
-      const cells = graph!.paste({ offset: 40 })
+      // 智能偏移量：每次粘贴递增
+      pasteCount.value++
+      const offset = 30 + (pasteCount.value - 1) * 20
+
+      const cells = graph!.paste({ offset })
       graph!.cleanSelection()
       graph!.select(cells)
+
+      // 添加粘贴闪烁动画
+      cells.filter(cell => cell.isNode()).forEach(node => {
+        const originalStroke = node.attr('body/stroke')
+        const originalStrokeWidth = node.attr('body/strokeWidth')
+
+        // 闪烁动画
+        node.attr('body/stroke', '#10B981')
+        node.attr('body/strokeWidth', 3)
+
+        setTimeout(() => {
+          node.attr('body/stroke', '#2D6EED')
+          node.attr('body/strokeWidth', 2)
+        }, 200)
+
+        setTimeout(() => {
+          node.attr('body/stroke', '#10B981')
+          node.attr('body/strokeWidth', 3)
+        }, 400)
+
+        setTimeout(() => {
+          // 恢复为选中状态
+          node.attr('body/stroke', '#2D6EED')
+          node.attr('body/strokeWidth', 2)
+        }, 600)
+      })
 
       // 触发粘贴事件
       const nodeCount = cells.filter(cell => cell.isNode()).length
@@ -980,15 +1039,112 @@ defineExpose({
     }
   }
 
-  :deep(.x6-selection-box) {
-    border: 2px dashed #2D6EED;
-    background: rgba(45, 110, 237, 0.1);
+  // 框选框样式 - 增强版
+  :deep(.x6-selection-box),
+  :deep(.x6-selection-enhanced) {
+    border: 2px solid #2D6EED !important;
+    background: rgba(45, 110, 237, 0.08) !important;
+    box-shadow: 0 0 0 1px rgba(45, 110, 237, 0.2),
+                0 2px 8px rgba(45, 110, 237, 0.15) !important;
+    border-radius: 4px !important;
+    animation: selection-pulse 1.5s ease-in-out infinite;
+  }
+
+  // 框选拖拽框样式 - 增强版
+  :deep(.x6-widget-selection-rubberband),
+  :deep(.x6-rubberband-enhanced) {
+    border: 2px dashed #2D6EED !important;
+    background: rgba(45, 110, 237, 0.12) !important;
+    box-shadow: 0 0 0 1px rgba(45, 110, 237, 0.3),
+                0 4px 12px rgba(45, 110, 237, 0.2) !important;
+    border-radius: 2px !important;
+    opacity: 0.95 !important;
+  }
+
+  // 选中节点脉冲动画
+  @keyframes selection-pulse {
+    0%, 100% {
+      box-shadow: 0 0 0 1px rgba(45, 110, 237, 0.2),
+                  0 2px 8px rgba(45, 110, 237, 0.15);
+    }
+    50% {
+      box-shadow: 0 0 0 2px rgba(45, 110, 237, 0.3),
+                  0 4px 12px rgba(45, 110, 237, 0.25);
+    }
   }
 
   :deep(.snapline) {
     stroke: #2D6EED;
     stroke-dasharray: 5, 5;
     stroke-width: 1.5;
+  }
+
+  // 选中计数指示器
+  .selection-indicator {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    background: #FFFFFF;
+    border: 1px solid #2D6EED;
+    border-radius: 20px;
+    box-shadow: 0 4px 12px rgba(45, 110, 237, 0.2),
+                0 0 0 3px rgba(45, 110, 237, 0.08);
+    z-index: 1000;
+    pointer-events: none;
+    animation: slide-down 0.3s ease-out;
+
+    .selection-count {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 24px;
+      height: 24px;
+      padding: 0 8px;
+      background: #2D6EED;
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 600;
+      border-radius: 12px;
+    }
+
+    .selection-label {
+      font-size: 13px;
+      color: #5F6368;
+      font-weight: 500;
+    }
+  }
+
+  // 淡入淡出动画
+  .fade-enter-active,
+  .fade-leave-active {
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
+
+  .fade-enter-from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  .fade-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  // 下滑动画
+  @keyframes slide-down {
+    from {
+      opacity: 0;
+      transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(-50%) translateY(0);
+    }
   }
 
   // 小地图样式

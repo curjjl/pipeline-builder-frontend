@@ -62,24 +62,62 @@
 
     <!-- 右侧：数据表格 -->
     <div class="panel-content">
-      <!-- 数据集选择器 -->
-      <div v-if="mode === 'input'" class="dataset-selector">
-        <a-select
-          v-model:value="selectedDataset"
-          size="small"
-          style="width: 200px"
-          @change="handleDatasetChange"
-        >
-          <a-select-option value="products">
-            <DatabaseOutlined /> products
-          </a-select-option>
-          <a-select-option value="customers">
-            <DatabaseOutlined /> customers
-          </a-select-option>
-          <a-select-option value="transactions">
-            <DatabaseOutlined /> transactions
-          </a-select-option>
-        </a-select>
+      <!-- 工具栏 -->
+      <div class="data-toolbar">
+        <!-- 数据集选择器 -->
+        <div v-if="mode === 'input'" class="dataset-selector">
+          <a-select
+            v-model:value="selectedDataset"
+            size="small"
+            style="width: 200px"
+            @change="handleDatasetChange"
+          >
+            <a-select-option value="products">
+              <DatabaseOutlined /> products
+            </a-select-option>
+            <a-select-option value="customers">
+              <DatabaseOutlined /> customers
+            </a-select-option>
+            <a-select-option value="transactions">
+              <DatabaseOutlined /> transactions
+            </a-select-option>
+          </a-select>
+        </div>
+
+        <div class="toolbar-spacer"></div>
+
+        <!-- 导出按钮组 -->
+        <div class="export-actions">
+          <a-dropdown :trigger="['click']">
+            <a-button size="small" type="default">
+              <DownloadOutlined />
+              Export
+              <DownOutlined />
+            </a-button>
+            <template #overlay>
+              <a-menu @click="handleExport">
+                <a-menu-item key="csv">
+                  <FileTextOutlined />
+                  Export as CSV
+                </a-menu-item>
+                <a-menu-item key="excel">
+                  <FileExcelOutlined />
+                  Export as Excel
+                </a-menu-item>
+                <a-menu-item key="json">
+                  <FileOutlined />
+                  Export as JSON
+                </a-menu-item>
+              </a-menu>
+            </template>
+          </a-dropdown>
+
+          <a-tooltip title="Rows count">
+            <a-tag class="row-count-tag">
+              {{ tableData.length }} rows
+            </a-tag>
+          </a-tooltip>
+        </div>
       </div>
 
       <!-- 数据表格 -->
@@ -135,12 +173,17 @@ import {
   FileTextOutlined,
   NumberOutlined,
   CalendarOutlined,
-  CheckOutlined
+  CheckOutlined,
+  DownloadOutlined,
+  DownOutlined,
+  FileExcelOutlined,
+  FileOutlined
 } from '@ant-design/icons-vue'
 import DataTable from './DataTable.vue'
 import type { Node } from '@/stores/modules/pipeline'
 import { usePipelineStore } from '@/stores/modules/pipeline'
 import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
+import { exportData } from '@/utils/export'
 
 interface Props {
   node?: Node
@@ -288,6 +331,38 @@ function handleTransform(column: string) {
   emit('column:transform', column)
 }
 
+// 导出数据
+function handleExport({ key }: { key: string }) {
+  try {
+    if (!tableData.value || tableData.value.length === 0) {
+      message.warning('No data to export')
+      return
+    }
+
+    // 准备列信息
+    const columns = tableColumns.value.map(col => ({
+      name: col.title || col.dataIndex,
+      dataIndex: col.dataIndex
+    }))
+
+    // 生成文件名
+    const nodeName = props.node?.name || 'data'
+    const timestamp = new Date().toISOString().slice(0, 10).replace(/-/g, '')
+    const filename = `${nodeName}_${timestamp}`
+
+    // 导出数据
+    exportData(tableData.value, columns, {
+      format: key as 'csv' | 'excel' | 'json',
+      filename
+    })
+
+    message.success(`Successfully exported ${tableData.value.length} rows as ${key.toUpperCase()}`)
+  } catch (error: any) {
+    message.error(`Export failed: ${error.message}`)
+    console.error('Export error:', error)
+  }
+}
+
 // 监听节点变化
 watch(
   () => props.node,
@@ -425,9 +500,37 @@ if (props.mode === 'input') {
   flex-direction: column;
   overflow: hidden;
 
-  .dataset-selector {
+  .data-toolbar {
+    display: flex;
+    align-items: center;
     padding: 12px 16px;
     border-bottom: 1px solid #E4E7EB;
+    background: #FFFFFF;
+    gap: 12px;
+
+    .dataset-selector {
+      // 数据集选择器样式已内联
+    }
+
+    .toolbar-spacer {
+      flex: 1;
+    }
+
+    .export-actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+
+      .row-count-tag {
+        font-size: 12px;
+        padding: 2px 10px;
+        border-radius: 12px;
+        background: #F5F6F7;
+        border: 1px solid #E4E7EB;
+        color: #5F6368;
+        font-weight: 500;
+      }
+    }
   }
 
   .column-stats {
