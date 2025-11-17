@@ -9,6 +9,28 @@ export default {
     noPipelinesFound: '未找到管道',
     loadingPipelines: '加载管道中...'
   },
+  create: {
+    title: '创建新管道',
+    pipelineType: '管道类型',
+    batchPipeline: 'Batch Pipeline',
+    batchDescription: '批处理管道,按计划或按需处理数据集',
+    streamingPipeline: 'Streaming Pipeline',
+    streamingDescription: '实时流式管道,持续处理实时数据流',
+    pipelineName: '管道名称',
+    namePlaceholder: '输入管道名称',
+    description: '描述',
+    optional: '(可选)',
+    descriptionPlaceholder: '输入管道的描述信息...',
+    saveLocation: '保存位置',
+    locationPlaceholder: '选择保存位置',
+    locationHint: '管道将保存到所选文件夹中。建议将相关管道组织在一起。',
+    cancel: '取消',
+    createButton: '创建管道',
+    createSuccess: '管道创建成功',
+    nameErrorTooShort: '名称至少需要3个字符',
+    nameErrorTooLong: '名称不能超过100个字符',
+    nameErrorInvalidChars: '名称只能包含字母、数字、空格、连字符和下划线'
+  },
   editor: {
     title: '编辑管道',
     editingPipeline: '正在编辑管道',

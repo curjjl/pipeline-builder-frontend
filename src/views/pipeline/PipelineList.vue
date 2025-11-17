@@ -2,7 +2,7 @@
   <div class="pipeline-list">
     <div class="page-header">
       <h2>管道列表</h2>
-      <a-button type="primary" @click="handleCreate">
+      <a-button type="primary" @click="showCreateModal = true">
         <PlusOutlined />
         创建管道
       </a-button>
@@ -19,6 +19,12 @@
         </template>
       </template>
     </a-table>
+
+    <!-- Create Pipeline Modal -->
+    <CreatePipelineModal
+      v-model:open="showCreateModal"
+      @create="handleCreatePipeline"
+    />
   </div>
 </template>
 
@@ -27,10 +33,12 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { PlusOutlined } from '@ant-design/icons-vue'
 import type { Pipeline } from '@/types'
+import CreatePipelineModal from '@/components/pipeline/CreatePipelineModal.vue'
 
 const router = useRouter()
 const loading = ref(false)
 const pipelines = ref<Pipeline[]>([])
+const showCreateModal = ref(false)
 
 const columns = [
   {
@@ -90,8 +98,18 @@ async function loadPipelines() {
   }
 }
 
-function handleCreate() {
-  router.push('/pipelines/new/edit')
+function handleCreatePipeline(data: any) {
+  console.log('Creating pipeline with data:', data)
+  // Navigate to pipeline editor with the creation data
+  router.push({
+    path: '/pipelines/new/edit',
+    query: {
+      type: data.type,
+      name: data.name,
+      description: data.description,
+      location: data.location
+    }
+  })
 }
 
 function handleEdit(record: Pipeline) {
