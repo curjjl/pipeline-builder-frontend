@@ -269,13 +269,13 @@ export const usePipelineStore = defineStore('pipeline', {
               rightKey: Object.keys(rightData[0] || {})[0]
             }
 
-            data = joinDatasets(
+            data = joinDatasets({
               leftData,
               rightData,
-              joinConfig.leftKey,
-              joinConfig.rightKey,
-              joinConfig.type
-            )
+              leftKey: joinConfig.leftKey,
+              rightKey: joinConfig.rightKey,
+              type: joinConfig.type
+            })
           }
           break
 

@@ -2,10 +2,16 @@
   <div class="pipeline-list">
     <div class="page-header">
       <h2>管道列表</h2>
-      <a-button type="primary" @click="showCreateModal = true">
-        <PlusOutlined />
-        创建管道
-      </a-button>
+      <a-space>
+        <a-button @click="handleLoadDemo">
+          <RocketOutlined />
+          加载演示Pipeline
+        </a-button>
+        <a-button type="primary" @click="showCreateModal = true">
+          <PlusOutlined />
+          创建管道
+        </a-button>
+      </a-space>
     </div>
 
     <a-table :columns="columns" :data-source="pipelines" :loading="loading" row-key="id">
@@ -31,11 +37,15 @@
 <script setup lang="ts">
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { PlusOutlined } from '@ant-design/icons-vue'
+import { message } from 'ant-design-vue'
+import { PlusOutlined, RocketOutlined } from '@ant-design/icons-vue'
 import type { Pipeline } from '@/types'
 import CreatePipelineModal from '@/components/pipeline/CreatePipelineModal.vue'
+import { getCompleteDemoConfig, exportPipelineSchema } from '@/utils/demoData'
+import { usePipelineStore } from '@/stores/modules/pipeline'
 
 const router = useRouter()
+const pipelineStore = usePipelineStore()
 const loading = ref(false)
 const pipelines = ref<Pipeline[]>([])
 const showCreateModal = ref(false)
@@ -122,6 +132,37 @@ function handleRun(record: Pipeline) {
 
 function handleDelete(record: Pipeline) {
   console.log('Delete pipeline:', record.id)
+}
+
+/**
+ * 加载演示Pipeline
+ */
+async function handleLoadDemo() {
+  try {
+    // 获取演示配置
+    const { pipeline, transforms } = getCompleteDemoConfig()
+
+    // 加载到store
+    pipelineStore.setPipeline(pipeline)
+
+    // 加载Transform配置
+    transforms.forEach((transformList, nodeId) => {
+      transformList.forEach(transform => {
+        pipelineStore.addTransform(nodeId, transform)
+      })
+    })
+
+    // 保存到localStorage
+    await pipelineStore.savePipeline()
+
+    message.success('演示Pipeline已加载！')
+
+    // 导航到编辑器
+    router.push(`/pipelines/${pipeline.id}/edit`)
+  } catch (error: any) {
+    message.error(`加载演示失败: ${error.message}`)
+    console.error('Load demo error:', error)
+  }
 }
 </script>
 
