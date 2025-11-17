@@ -52,6 +52,8 @@ const emit = defineEmits<{
 
 const containerRef = ref<HTMLDivElement>()
 const selectedCount = ref(0)
+const pasteCount = ref(0)
+const lastCopiedCells = ref<any[]>([])
 let graph: Graph | null = null
 
 // 初始化图编辑器
@@ -332,6 +334,7 @@ const bindEvents = () => {
   graph.on('blank:click', () => {
     emit('canvas:click')
     graph?.cleanSelection()
+    pasteCount.value = 0  // 重置粘贴计数
   })
 
   // 连接创建
@@ -573,6 +576,8 @@ const bindEvents = () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
       graph!.copy(cells)
+      lastCopiedCells.value = cells
+      pasteCount.value = 0  // 重置粘贴计数
 
       // 触发复制事件
       const nodeCount = cells.filter(cell => cell.isNode()).length
@@ -586,9 +591,39 @@ const bindEvents = () => {
   // 粘贴
   graph.bindKey(['ctrl+v', 'meta+v'], () => {
     if (!graph!.isClipboardEmpty()) {
-      const cells = graph!.paste({ offset: 40 })
+      // 智能偏移量：每次粘贴递增
+      pasteCount.value++
+      const offset = 30 + (pasteCount.value - 1) * 20
+
+      const cells = graph!.paste({ offset })
       graph!.cleanSelection()
       graph!.select(cells)
+
+      // 添加粘贴闪烁动画
+      cells.filter(cell => cell.isNode()).forEach(node => {
+        const originalStroke = node.attr('body/stroke')
+        const originalStrokeWidth = node.attr('body/strokeWidth')
+
+        // 闪烁动画
+        node.attr('body/stroke', '#10B981')
+        node.attr('body/strokeWidth', 3)
+
+        setTimeout(() => {
+          node.attr('body/stroke', '#2D6EED')
+          node.attr('body/strokeWidth', 2)
+        }, 200)
+
+        setTimeout(() => {
+          node.attr('body/stroke', '#10B981')
+          node.attr('body/strokeWidth', 3)
+        }, 400)
+
+        setTimeout(() => {
+          // 恢复为选中状态
+          node.attr('body/stroke', '#2D6EED')
+          node.attr('body/strokeWidth', 2)
+        }, 600)
+      })
 
       // 触发粘贴事件
       const nodeCount = cells.filter(cell => cell.isNode()).length
