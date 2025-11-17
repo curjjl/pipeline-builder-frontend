@@ -9,6 +9,28 @@ export default {
     noPipelinesFound: 'No pipelines found',
     loadingPipelines: 'Loading pipelines...'
   },
+  create: {
+    title: 'Create New Pipeline',
+    pipelineType: 'Pipeline Type',
+    batchPipeline: 'Batch Pipeline',
+    batchDescription: 'Process datasets on a schedule or on-demand',
+    streamingPipeline: 'Streaming Pipeline',
+    streamingDescription: 'Continuously process real-time data streams',
+    pipelineName: 'Pipeline Name',
+    namePlaceholder: 'Enter pipeline name',
+    description: 'Description',
+    optional: '(optional)',
+    descriptionPlaceholder: 'Enter a description for this pipeline...',
+    saveLocation: 'Save Location',
+    locationPlaceholder: 'Select save location',
+    locationHint: 'Your pipeline will be saved to the selected folder. Consider organizing related pipelines together.',
+    cancel: 'Cancel',
+    createButton: 'Create Pipeline',
+    createSuccess: 'Pipeline created successfully',
+    nameErrorTooShort: 'Name must be at least 3 characters',
+    nameErrorTooLong: 'Name cannot exceed 100 characters',
+    nameErrorInvalidChars: 'Name can only contain letters, numbers, spaces, hyphens, and underscores'
+  },
   editor: {
     title: 'Edit Pipeline',
     editingPipeline: 'Editing Pipeline',
