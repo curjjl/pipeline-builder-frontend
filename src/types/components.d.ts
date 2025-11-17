@@ -51,6 +51,7 @@ declare module 'vue' {
     CodeEditor: typeof import('./../components/common/CodeEditor.vue')['default']
     CodeEditorModal: typeof import('./../components/pipeline/CodeEditorModal.vue')['default']
     ContextMenu: typeof import('./../components/common/ContextMenu.vue')['default']
+    CreatePipelineModal: typeof import('./../components/pipeline/CreatePipelineModal.vue')['default']
     CsvUploadModal: typeof import('./../components/pipeline/CsvUploadModal.vue')['default']
     DataExportModal: typeof import('./../components/pipeline/DataExportModal.vue')['default']
     DataImportDialog: typeof import('./../components/pipeline/DataImportDialog.vue')['default']
