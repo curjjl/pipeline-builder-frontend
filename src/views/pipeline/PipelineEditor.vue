@@ -747,6 +747,18 @@
       v-model:open="showImportDialog"
       @import="handleDataImport"
     />
+
+    <!-- Execution Monitor -->
+    <ExecutionMonitor
+      :visible="showExecutionMonitor"
+      :status="executionStatus"
+      :node-executions="nodeExecutions"
+      :start-time="executionStartTime"
+      :end-time="executionEndTime"
+      :error="executionError"
+      @close="handleCloseExecutionMonitor"
+      @clear-error="handleClearExecutionError"
+    />
   </div>
 </template>
 
@@ -811,6 +823,7 @@ import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import NodeSearchPanel from '@/components/pipeline/NodeSearchPanel.vue'
+import ExecutionMonitor from '@/components/pipeline/ExecutionMonitor.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
 
@@ -924,6 +937,25 @@ const bottomPanelVisible = ref(true)
 const bottomPanelHeight = ref(350)
 const bottomPanelCollapsed = ref(false) // New: track collapsed state
 const bottomTab = ref('selection-preview')
+
+// Execution monitoring
+const showExecutionMonitor = ref(false)
+const executionStatus = ref<'idle' | 'running' | 'success' | 'error'>('idle')
+const nodeExecutions = ref<Array<{
+  id: string
+  name: string
+  status: 'pending' | 'running' | 'success' | 'error'
+  duration?: number
+  rows?: number
+  error?: string
+}>>([])
+const executionStartTime = ref(0)
+const executionEndTime = ref(0)
+const executionError = ref<{
+  title: string
+  message: string
+  nodeId?: string
+} | null>(null)
 
 // Context menu
 const contextMenuVisible = ref(false)
@@ -1968,13 +2000,59 @@ function handleRedo() {
 
 // Run pipeline
 async function handleRunPipeline() {
+  // Initialize execution monitoring
+  showExecutionMonitor.value = true
+  executionStatus.value = 'running'
+  executionStartTime.value = Date.now()
+  executionEndTime.value = 0
+  executionError.value = null
+
+  // Initialize node executions
+  nodeExecutions.value = nodes.value.map(node => ({
+    id: node.id,
+    name: node.name,
+    status: 'pending' as const,
+    duration: undefined,
+    rows: undefined,
+    error: undefined
+  }))
+
   message.loading({ content: 'Running pipeline...', key: 'run' })
 
   try {
+    // Simulate node-by-node execution (for demo)
+    for (let i = 0; i < nodeExecutions.value.length; i++) {
+      const nodeExecution = nodeExecutions.value[i]
+      const nodeStartTime = Date.now()
+
+      // Mark node as running
+      nodeExecution.status = 'running'
+
+      // Simulate execution delay
+      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000))
+
+      // Mark node as success (in real impl, check actual execution result)
+      nodeExecution.status = 'success'
+      nodeExecution.duration = Date.now() - nodeStartTime
+      nodeExecution.rows = Math.floor(Math.random() * 1000) + 100 // Demo data
+    }
+
     const result = await pipelineStore.executePipeline()
 
     if (result.success) {
+      executionStatus.value = 'success'
+      executionEndTime.value = Date.now()
       message.success({ content: result.message, key: 'run' })
+
+      // Update node execution results
+      if (result.results) {
+        result.results.forEach((data, nodeId) => {
+          const nodeExec = nodeExecutions.value.find(n => n.id === nodeId)
+          if (nodeExec) {
+            nodeExec.rows = data.length
+          }
+        })
+      }
 
       // Log execution results
       console.log('====================================')
@@ -1991,13 +2069,35 @@ async function handleRunPipeline() {
       }
       console.log('====================================')
     } else {
+      executionStatus.value = 'error'
+      executionEndTime.value = Date.now()
+      executionError.value = {
+        title: 'Pipeline Execution Failed',
+        message: result.message || 'Unknown error occurred'
+      }
       message.error({ content: result.message, key: 'run' })
       console.error('Pipeline execution failed:', result.message)
     }
   } catch (error: any) {
+    executionStatus.value = 'error'
+    executionEndTime.value = Date.now()
+    executionError.value = {
+      title: 'Pipeline Execution Error',
+      message: error.message || 'An unexpected error occurred'
+    }
     message.error({ content: 'Pipeline execution failed', key: 'run' })
     console.error('Pipeline execution error:', error)
   }
+}
+
+// Close execution monitor
+function handleCloseExecutionMonitor() {
+  showExecutionMonitor.value = false
+}
+
+// Clear execution error
+function handleClearExecutionError() {
+  executionError.value = null
 }
 
 // Add output
