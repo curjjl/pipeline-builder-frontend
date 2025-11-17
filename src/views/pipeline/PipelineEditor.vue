@@ -226,6 +226,14 @@
           @nodes:pasted="handleNodesPasted"
         />
 
+        <!-- Node Search Panel -->
+        <NodeSearchPanel
+          :nodes="nodes"
+          @highlight="handleSearchHighlight"
+          @focus="handleSearchFocus"
+          @clear="handleSearchClear"
+        />
+
         <!-- Zoom and Layout controls -->
         <div class="zoom-controls">
           <a-button size="small" @click="handleZoom('in')" title="Zoom in">
@@ -802,6 +810,7 @@ import TransformPanel from '@/components/pipeline/TransformPanel.vue'
 import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
+import NodeSearchPanel from '@/components/pipeline/NodeSearchPanel.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
 
@@ -2178,6 +2187,79 @@ function handleAddDataAtPosition(x: number, y: number) {
     pipelineStore.addNode(node)
     message.success(`Added dataset: ${dataset.displayName}`)
   }
+}
+
+// ==================== Search Handlers ====================
+
+// Handle search highlight
+function handleSearchHighlight(nodeId: string) {
+  if (!canvasRef.value) return
+
+  const graph = canvasRef.value.$el?.graph || canvasRef.value.graph
+  if (!graph) return
+
+  // Clear previous highlights
+  graph.getNodes().forEach(node => {
+    if (node.id !== nodeId) {
+      node.attr('body/stroke', '#D0D5DD')
+      node.attr('body/strokeWidth', 1)
+    }
+  })
+
+  // Highlight the target node
+  const node = graph.getCellById(nodeId)
+  if (node && node.isNode()) {
+    node.attr('body/stroke', '#F59E0B')  // Orange highlight
+    node.attr('body/strokeWidth', 3)
+    node.attr('body/strokeDasharray', '5,5')  // Dashed border
+
+    // Add pulsing animation
+    setTimeout(() => {
+      node.attr('body/strokeDasharray', null)
+    }, 1000)
+  }
+}
+
+// Handle search focus
+function handleSearchFocus(nodeId: string) {
+  if (!canvasRef.value) return
+
+  const graph = canvasRef.value.$el?.graph || canvasRef.value.graph
+  if (!graph) return
+
+  const node = graph.getCellById(nodeId)
+  if (node && node.isNode()) {
+    const bbox = node.getBBox()
+
+    // Center the node in viewport with smooth animation
+    graph.centerCell(node, {
+      animation: {
+        duration: 300,
+        easing: 'ease-in-out'
+      }
+    })
+
+    // Select the node
+    graph.cleanSelection()
+    graph.select(node)
+  }
+}
+
+// Handle search clear
+function handleSearchClear() {
+  if (!canvasRef.value) return
+
+  const graph = canvasRef.value.$el?.graph || canvasRef.value.graph
+  if (!graph) return
+
+  // Clear all highlights
+  graph.getNodes().forEach(node => {
+    node.attr('body/stroke', '#D0D5DD')
+    node.attr('body/strokeWidth', 1)
+    node.attr('body/strokeDasharray', null)
+  })
+
+  graph.cleanSelection()
 }
 
 // ==================== Lifecycle ====================
