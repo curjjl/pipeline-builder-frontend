@@ -94,7 +94,8 @@ export default defineConfig({
           'vue-vendor': ['vue', 'vue-router', 'pinia'],
           'ui-vendor': ['ant-design-vue', '@ant-design/icons-vue'],
           'graph-vendor': ['@antv/x6'],
-          'utils-vendor': ['axios', 'dayjs', 'lodash-es']
+          'utils-vendor': ['axios', 'dayjs', 'lodash-es'],
+          'monaco-editor': ['monaco-editor']
         },
         chunkFileNames: 'js/[name]-[hash].js',
         entryFileNames: 'js/[name]-[hash].js',
@@ -117,7 +118,8 @@ export default defineConfig({
       'dayjs',
       'lodash-es',
       'axios',
-      '@vueuse/core'
+      '@vueuse/core',
+      'monaco-editor'
     ]
   }
 })

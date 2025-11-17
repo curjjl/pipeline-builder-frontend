@@ -191,6 +191,22 @@
           @cancel="handleCancel"
         />
 
+        <!-- Python 转换 -->
+        <PythonTransform
+          v-else-if="selectedTransform === 'python'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
+        <!-- SQL 转换 -->
+        <SQLTransform
+          v-else-if="selectedTransform === 'sql'"
+          :available-columns="availableColumns"
+          @apply="handleApply"
+          @cancel="handleCancel"
+        />
+
         <!-- 通用转换配置 -->
         <GenericTransform
           v-else
@@ -221,6 +237,8 @@ import ReplaceTransform from './transforms/ReplaceTransform.vue'
 import SplitColumnsTransform from './transforms/SplitColumnsTransform.vue'
 import CleanStringTransform from './transforms/CleanStringTransform.vue'
 import TitleCaseTransform from './transforms/TitleCaseTransform.vue'
+import PythonTransform from './transforms/PythonTransform.vue'
+import SQLTransform from './transforms/SQLTransform.vue'
 import GenericTransform from './transforms/GenericTransform.vue'
 import type { Node } from '@/stores/modules/pipeline'
 
@@ -355,6 +373,18 @@ const transforms = computed(() => [
     name: 'Fill null',
     category: ['all', 'data-prep'],
     description: 'Fill null values with a default value.'
+  },
+  {
+    key: 'python',
+    name: 'Python Code',
+    category: ['all', 'popular', 'udfs', 'functions'],
+    description: 'Write custom Python code to transform data using pandas.'
+  },
+  {
+    key: 'sql',
+    name: 'SQL Query',
+    category: ['all', 'popular', 'udfs', 'functions'],
+    description: 'Write SQL queries to transform and filter data.'
   }
 ])
 

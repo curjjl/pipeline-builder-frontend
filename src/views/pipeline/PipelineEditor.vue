@@ -192,6 +192,13 @@
       <div style="flex: 1;"></div>
 
       <div class="toolbar-section">
+        <a-button
+          @click="handleExportNode()"
+          :disabled="!selectedNode"
+          style="margin-right: 8px;"
+        >
+          <DownloadOutlined /> {{ t('common.actions.export') }}
+        </a-button>
         <a-button type="primary" @click="handleRunPipeline" style="margin-right: 8px;">
           <PlayCircleOutlined /> {{ t('common.actions.run') }}
         </a-button>
@@ -200,11 +207,11 @@
 
     <!-- Main content area -->
     <div class="main-content">
-      <!-- Node Palette - Hidden for expanded canvas area -->
-      <!-- <NodePalette
+      <!-- Node Palette -->
+      <NodePalette
         @node-drag-start="handleNodeDragStart"
         @node-drag-end="handleNodeDragEnd"
-      /> -->
+      />
 
       <!-- Canvas area -->
       <div class="canvas-area"
@@ -219,6 +226,7 @@
           @node:click="handleNodeClick"
           @node:dblclick="handleNodeDoubleClick"
           @node:contextmenu="handleNodeContextMenu"
+          @node:moved="handleNodeMoved"
           @edge:added="handleEdgeAdded"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
@@ -747,11 +755,40 @@
       v-model:open="showImportDialog"
       @import="handleDataImport"
     />
+
+    <!-- Execution Monitor -->
+    <ExecutionMonitor
+      :visible="showExecutionMonitor"
+      :status="executionStatus"
+      :node-executions="nodeExecutions"
+      :start-time="executionStartTime"
+      :end-time="executionEndTime"
+      :error="executionError"
+      @close="handleCloseExecutionMonitor"
+      @clear-error="handleClearExecutionError"
+    />
+
+    <!-- Data Export Modal -->
+    <DataExportModal
+      v-model:open="showExportDialog"
+      :data="exportData"
+      :columns="exportColumns"
+      :default-file-name="exportFileName"
+      @exported="handleDataExported"
+    />
+
+    <!-- Code Editor Modal -->
+    <CodeEditorModal
+      v-model:open="showCodeEditor"
+      :initialCode="codeEditorInitialCode"
+      :initialLanguage="codeEditorLanguage"
+      @save="handleCodeSave"
+    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute } from 'vue-router'
 import { message } from 'ant-design-vue'
 import { useI18n } from 'vue-i18n'
@@ -798,7 +835,8 @@ import {
 } from '@ant-design/icons-vue'
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { getAllDatasets, getDatasetMeta, getDatasetData } from '@/mock/datasets'
+import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
+import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
@@ -811,6 +849,9 @@ import JoinPanel from '@/components/pipeline/JoinPanel.vue'
 import NodePalette from '@/components/pipeline/NodePalette.vue'
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import NodeSearchPanel from '@/components/pipeline/NodeSearchPanel.vue'
+import ExecutionMonitor from '@/components/pipeline/ExecutionMonitor.vue'
+import DataExportModal from '@/components/pipeline/DataExportModal.vue'
+import CodeEditorModal from '@/components/pipeline/CodeEditorModal.vue'
 import LocaleSwitcher from '@/components/common/LocaleSwitcher.vue'
 import { useRouter } from 'vue-router'
 
@@ -820,6 +861,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const pipelineStore = usePipelineStore()
+const historyStore = useHistoryStore()
 
 // Basic state
 const pipelineName = ref('My Pipeline')
@@ -925,6 +967,25 @@ const bottomPanelHeight = ref(350)
 const bottomPanelCollapsed = ref(false) // New: track collapsed state
 const bottomTab = ref('selection-preview')
 
+// Execution monitoring
+const showExecutionMonitor = ref(false)
+const executionStatus = ref<'idle' | 'running' | 'success' | 'error'>('idle')
+const nodeExecutions = ref<Array<{
+  id: string
+  name: string
+  status: 'pending' | 'running' | 'success' | 'error'
+  duration?: number
+  rows?: number
+  error?: string
+}>>([])
+const executionStartTime = ref(0)
+const executionEndTime = ref(0)
+const executionError = ref<{
+  title: string
+  message: string
+  nodeId?: string
+} | null>(null)
+
 // Context menu
 const contextMenuVisible = ref(false)
 const contextMenuX = ref(0)
@@ -953,12 +1014,24 @@ const cleanMenuTargetNode = ref<Node | null>(null)
 const draggingNodeType = ref<string | null>(null)
 const draggingNodeData = ref<any>(null)
 
-// Undo/Redo
-const canUndo = ref(false)
-const canRedo = ref(false)
+// Undo/Redo - computed from history store
+const canUndo = computed(() => historyStore.canUndo)
+const canRedo = computed(() => historyStore.canRedo)
 
 // Import dialog
 const showImportDialog = ref(false)
+
+// Export dialog
+const showExportDialog = ref(false)
+const exportData = ref<any[]>([])
+const exportColumns = ref<string[]>([])
+const exportFileName = ref('export')
+
+// Code editor dialog
+const showCodeEditor = ref(false)
+const codeEditorLanguage = ref<'sql' | 'python' | 'javascript'>('python')
+const codeEditorInitialCode = ref('')
+const codeEditorNodeId = ref<string | null>(null)
 
 // Node ID counter
 let nodeIdCounter = 1
@@ -989,29 +1062,110 @@ function handleAddData({ key }: { key: string }) {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success(`Added dataset: ${dataset.displayName} (${dataset.rowCount} rows, ${dataset.columns.length} columns)`)
 }
 
 // Handle imported data
 function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
+  // Add to dataset management system
+  const datasetName = name.replace(/\.(csv|json)$/i, '')
+  const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
+  const datasetId = addUserDataset(datasetName, data, columnNames)
+
+  // Create dataset node
   const node: Node = {
     id: `node-${nodeIdCounter++}`,
     type: 'dataset',
-    name: name.replace(/\.(csv|json)$/i, ''),
+    name: datasetName,
     x: 100 + Math.random() * 100,
     y: 100 + Math.random() * 100,
     data: {
-      datasetId: `imported-${Date.now()}`,
-      columnCount: columns.length,
-      rowCount: data.length,
-      columns,
-      importedData: data
+      datasetId: datasetId, // Use the generated dataset ID
+      columnCount: columnNames.length,
+      rowCount: data.length
     }
   }
 
-  pipelineStore.addNode(node)
-  message.success(`Imported ${data.length} rows with ${columns.length} columns`)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
+  message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+}
+
+// Handle data export
+async function handleExportNode(nodeId?: string) {
+  const node = nodeId ? pipelineStore.getNodeById(nodeId) : selectedNode.value
+
+  if (!node) {
+    message.warning(t('pipeline.messages.selectNode'))
+    return
+  }
+
+  try {
+    // Get node data
+    const data = await pipelineStore.getNodeData(node.id)
+
+    if (!data || data.length === 0) {
+      message.warning(t('pipeline.messages.noDataToExport'))
+      return
+    }
+
+    // Get columns
+    const columns = Object.keys(data[0] || {})
+
+    // Set export data and show modal
+    exportData.value = data
+    exportColumns.value = columns
+    exportFileName.value = node.name.replace(/[^a-zA-Z0-9_-]/g, '_')
+    showExportDialog.value = true
+  } catch (error: any) {
+    message.error(t('pipeline.messages.exportError', { error: error.message }))
+  }
+}
+
+function handleDataExported(fileName: string) {
+  // Optional: Track export analytics or perform cleanup
+  console.log('Exported:', fileName)
+}
+
+// Handle code editor
+function handleOpenCodeEditor(nodeId: string) {
+  const node = pipelineStore.getNodeById(nodeId)
+  if (!node) return
+
+  codeEditorNodeId.value = nodeId
+
+  // Get existing code from node data if available
+  const nodeData = node.data as any
+  codeEditorInitialCode.value = nodeData?.code || '# Write your Python code here\n\ndef transform(df):\n    # df is a pandas DataFrame\n    # Return the transformed DataFrame\n    return df\n'
+  codeEditorLanguage.value = nodeData?.language || 'python'
+
+  showCodeEditor.value = true
+}
+
+function handleCodeSave(code: string, language: string) {
+  if (!codeEditorNodeId.value) return
+
+  const node = pipelineStore.getNodeById(codeEditorNodeId.value)
+  if (!node) return
+
+  // Update node data with the code
+  const updatedData = {
+    ...node.data,
+    code,
+    language,
+    configured: true
+  }
+
+  pipelineStore.updateNode(codeEditorNodeId.value, {
+    data: updatedData
+  })
+
+  message.success(t('codeEditor.saved'))
+  codeEditorNodeId.value = null
 }
 
 // Add transform node
@@ -1028,7 +1182,9 @@ function handleAddTransformNode() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Transform node - Double click to configure')
 
   // Auto-open config panel after adding
@@ -1056,7 +1212,9 @@ function handleAddJoin() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Join node')
 }
 
@@ -1073,7 +1231,9 @@ function handleAddOutputNode() {
     }
   }
 
-  pipelineStore.addNode(node)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(node, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Added Output node')
 }
 
@@ -1158,6 +1318,10 @@ function handleNodeDoubleClick(node: Node) {
     rightPanelVisible.value = true
 
     message.info('Join config panel opened')
+  } else if (node.type === 'function') {
+    // If it's a function node, open code editor
+    console.log('Opening Code Editor')
+    handleOpenCodeEditor(node.id)
   } else if (node.type === 'dataset') {
     // For dataset nodes, show data preview
     bottomPanelVisible.value = true
@@ -1166,6 +1330,28 @@ function handleNodeDoubleClick(node: Node) {
   } else {
     bottomPanelVisible.value = true
     bottomTab.value = 'transformations'
+  }
+}
+
+// Node moved (for undo/redo support)
+let nodeMoveStartPositions = new Map<string, { x: number; y: number }>()
+
+function handleNodeMoved({ node, position }: { node: Node; position: { x: number; y: number } }) {
+  // Get the old position from the store
+  const storeNode = pipelineStore.getNodeById(node.id)
+  if (!storeNode) return
+
+  const oldPosition = { x: storeNode.x, y: storeNode.y }
+
+  // Only create command if position actually changed
+  if (oldPosition.x !== position.x || oldPosition.y !== position.y) {
+    const command = new MoveNodeCommand(
+      node.id,
+      oldPosition,
+      position,
+      pipelineStore
+    )
+    historyStore.executeCommand(command)
   }
 }
 
@@ -1231,6 +1417,11 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
       icon: 'eye'
     },
     {
+      key: 'export',
+      label: 'Export data',
+      icon: 'download'
+    },
+    {
       key: 'transform',
       label: 'Add transformation',
       icon: 'function'
@@ -1250,7 +1441,9 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
 
 // Edge added
 function handleEdgeAdded(edge: Edge) {
-  pipelineStore.addEdge(edge)
+  // Use command pattern for undo/redo support
+  const command = new AddEdgeCommand(edge, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Nodes connected')
 }
 
@@ -1413,18 +1606,30 @@ function handleContextMenuSelect(key: string) {
     case 'preview':
       handleNodeClick(target)
       break
+    case 'export':
+      handleExportNode(target.id)
+      break
     case 'transform':
       handleNodeDoubleClick(target)
       break
     case 'delete':
       if (target.source) {
-        // Edge
-        pipelineStore.removeEdge(target.id)
-        message.success('Connection deleted')
+        // Edge - use command pattern for undo/redo support
+        const edge = edges.value.find(e => e.id === target.id)
+        if (edge) {
+          const command = new DeleteEdgeCommand(edge, pipelineStore)
+          historyStore.executeCommand(command)
+          message.success('Connection deleted')
+        }
       } else {
-        // Node
-        pipelineStore.removeNode(target.id)
-        message.success('Node deleted')
+        // Node - use command pattern for undo/redo support
+        const node = nodes.value.find(n => n.id === target.id)
+        if (node) {
+          const relatedEdges = pipelineStore.getEdgesByNode(target.id)
+          const command = new DeleteNodeCommand(node, relatedEdges, pipelineStore)
+          historyStore.executeCommand(command)
+          message.success('Node deleted')
+        }
       }
       break
     default:
@@ -1444,7 +1649,9 @@ function duplicateNode(node: Node) {
     x: node.x + 50,
     y: node.y + 50
   }
-  pipelineStore.addNode(newNode)
+  // Use command pattern for undo/redo support
+  const command = new AddNodeCommand(newNode, pipelineStore)
+  historyStore.executeCommand(command)
   message.success('Node duplicated')
 }
 
@@ -1474,7 +1681,14 @@ function handleRenameConfirm() {
   const oldName = renameTargetNode.value.name
 
   if (newName !== oldName) {
-    pipelineStore.updateNode(renameTargetNode.value.id, { name: newName })
+    // Use command pattern for undo/redo support
+    const command = new UpdateNodeLabelCommand(
+      renameTargetNode.value.id,
+      oldName,
+      newName,
+      pipelineStore
+    )
+    historyStore.executeCommand(command)
     message.success(`Node renamed from "${oldName}" to "${newName}"`)
   }
 
@@ -1792,14 +2006,28 @@ function handleDeleteSelected() {
     return node?.name || id
   }).join(', ')
 
-  // Delete nodes
-  selectedIds.forEach(id => {
+  // Delete nodes using command pattern for undo/redo support
+  const commands = selectedIds.map(id => {
+    const node = nodes.value.find(n => n.id === id)
+    if (!node) return null
+
+    // Get related edges before deleting
+    const relatedEdges = pipelineStore.getEdgesByNode(id)
+
+    // Remove cell from graph
     const cell = graph.getCellById(id)
     if (cell) {
       cell.remove()
     }
-    pipelineStore.removeNode(id)
-  })
+
+    return new DeleteNodeCommand(node, relatedEdges, pipelineStore)
+  }).filter(cmd => cmd !== null) as any[]
+
+  // Use BatchCommand if multiple nodes selected
+  if (commands.length > 0) {
+    const batchCommand = new BatchCommand(commands, `Delete ${commands.length} node(s)`)
+    historyStore.executeCommand(batchCommand)
+  }
 
   pipelineStore.setSelectedNodes([])
   message.success(`Deleted ${selectedIds.length} node(s): ${nodeNames}`)
@@ -1958,23 +2186,87 @@ function handleMoreAction({ key }: { key: string }) {
 
 // Undo
 function handleUndo() {
-  message.info('Undo')
+  if (historyStore.canUndo) {
+    historyStore.undo()
+    // Force graph refresh
+    nextTick(() => {
+      if (canvasRef.value) {
+        canvasRef.value.refreshGraph()
+      }
+    })
+    message.success(t('common.actions.undo'))
+  }
 }
 
 // Redo
 function handleRedo() {
-  message.info('Redo')
+  if (historyStore.canRedo) {
+    historyStore.redo()
+    // Force graph refresh
+    nextTick(() => {
+      if (canvasRef.value) {
+        canvasRef.value.refreshGraph()
+      }
+    })
+    message.success(t('common.actions.redo'))
+  }
 }
 
 // Run pipeline
 async function handleRunPipeline() {
+  // Initialize execution monitoring
+  showExecutionMonitor.value = true
+  executionStatus.value = 'running'
+  executionStartTime.value = Date.now()
+  executionEndTime.value = 0
+  executionError.value = null
+
+  // Initialize node executions
+  nodeExecutions.value = nodes.value.map(node => ({
+    id: node.id,
+    name: node.name,
+    status: 'pending' as const,
+    duration: undefined,
+    rows: undefined,
+    error: undefined
+  }))
+
   message.loading({ content: 'Running pipeline...', key: 'run' })
 
   try {
+    // Simulate node-by-node execution (for demo)
+    for (let i = 0; i < nodeExecutions.value.length; i++) {
+      const nodeExecution = nodeExecutions.value[i]
+      const nodeStartTime = Date.now()
+
+      // Mark node as running
+      nodeExecution.status = 'running'
+
+      // Simulate execution delay
+      await new Promise(resolve => setTimeout(resolve, 500 + Math.random() * 1000))
+
+      // Mark node as success (in real impl, check actual execution result)
+      nodeExecution.status = 'success'
+      nodeExecution.duration = Date.now() - nodeStartTime
+      nodeExecution.rows = Math.floor(Math.random() * 1000) + 100 // Demo data
+    }
+
     const result = await pipelineStore.executePipeline()
 
     if (result.success) {
+      executionStatus.value = 'success'
+      executionEndTime.value = Date.now()
       message.success({ content: result.message, key: 'run' })
+
+      // Update node execution results
+      if (result.results) {
+        result.results.forEach((data, nodeId) => {
+          const nodeExec = nodeExecutions.value.find(n => n.id === nodeId)
+          if (nodeExec) {
+            nodeExec.rows = data.length
+          }
+        })
+      }
 
       // Log execution results
       console.log('====================================')
@@ -1991,13 +2283,35 @@ async function handleRunPipeline() {
       }
       console.log('====================================')
     } else {
+      executionStatus.value = 'error'
+      executionEndTime.value = Date.now()
+      executionError.value = {
+        title: 'Pipeline Execution Failed',
+        message: result.message || 'Unknown error occurred'
+      }
       message.error({ content: result.message, key: 'run' })
       console.error('Pipeline execution failed:', result.message)
     }
   } catch (error: any) {
+    executionStatus.value = 'error'
+    executionEndTime.value = Date.now()
+    executionError.value = {
+      title: 'Pipeline Execution Error',
+      message: error.message || 'An unexpected error occurred'
+    }
     message.error({ content: 'Pipeline execution failed', key: 'run' })
     console.error('Pipeline execution error:', error)
   }
+}
+
+// Close execution monitor
+function handleCloseExecutionMonitor() {
+  showExecutionMonitor.value = false
+}
+
+// Clear execution error
+function handleClearExecutionError() {
+  executionError.value = null
 }
 
 // Add output
@@ -2158,7 +2472,9 @@ function handleCanvasDrop(event: DragEvent) {
   }
 
   if (newNode) {
-    pipelineStore.addNode(newNode)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(newNode, pipelineStore)
+    historyStore.executeCommand(command)
     message.success(`${nodeData.name} node added`)
   }
 
@@ -2184,7 +2500,9 @@ function handleAddDataAtPosition(x: number, y: number) {
       }
     }
 
-    pipelineStore.addNode(node)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(node, pipelineStore)
+    historyStore.executeCommand(command)
     message.success(`Added dataset: ${dataset.displayName}`)
   }
 }
@@ -2264,6 +2582,20 @@ function handleSearchClear() {
 
 // ==================== Lifecycle ====================
 
+// Keyboard shortcuts for undo/redo
+const handleKeyboardShortcuts = (e: KeyboardEvent) => {
+  // Ctrl+Z or Cmd+Z for Undo
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+    e.preventDefault()
+    handleUndo()
+  }
+  // Ctrl+Y or Cmd+Y or Ctrl+Shift+Z for Redo
+  else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+    e.preventDefault()
+    handleRedo()
+  }
+}
+
 onMounted(async () => {
   const pipelineId = route.params.id as string
 
@@ -2288,11 +2620,15 @@ onMounted(async () => {
       updatedAt: new Date().toISOString()
     })
   }
+
+  // Add keyboard shortcuts
+  document.addEventListener('keydown', handleKeyboardShortcuts)
 })
 
 onUnmounted(() => {
   document.removeEventListener('mousemove', handleResize)
   document.removeEventListener('mouseup', stopResize)
+  document.removeEventListener('keydown', handleKeyboardShortcuts)
 })
 </script>
 
