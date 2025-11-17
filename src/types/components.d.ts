@@ -56,6 +56,7 @@ declare module 'vue' {
     DataTable: typeof import('./../components/pipeline/DataTable.vue')['default']
     ExecutionMonitor: typeof import('./../components/pipeline/ExecutionMonitor.vue')['default']
     FilterTransform: typeof import('./../components/pipeline/transforms/FilterTransform.vue')['default']
+    FindReplacePanel: typeof import('./../components/pipeline/FindReplacePanel.vue')['default']
     GenericTransform: typeof import('./../components/pipeline/transforms/GenericTransform.vue')['default']
     GraphCanvas: typeof import('./../components/pipeline/GraphCanvas.vue')['default']
     GroupByTransform: typeof import('./../components/pipeline/transforms/GroupByTransform.vue')['default']
