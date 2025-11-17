@@ -32,7 +32,8 @@
       "Bash(dir:*)",
       "Bash(cat:*)",
       "Bash(timeout 2 bash:*)",
-      "Bash(npm install:*)"
+      "Bash(npm install:*)",
+      "Bash(mkdir:*)"
     ],
     "deny": [],
     "ask": []
