@@ -62,6 +62,7 @@ declare module 'vue' {
     JoinPanel: typeof import('./../components/pipeline/JoinPanel.vue')['default']
     JoinTransform: typeof import('./../components/pipeline/transforms/JoinTransform.vue')['default']
     LocaleSwitcher: typeof import('./../components/common/LocaleSwitcher.vue')['default']
+    LogViewer: typeof import('./../components/pipeline/LogViewer.vue')['default']
     NodePalette: typeof import('./../components/pipeline/NodePalette.vue')['default']
     NodeSearchPanel: typeof import('./../components/pipeline/NodeSearchPanel.vue')['default']
     NodeToolbar: typeof import('./../components/pipeline/NodeToolbar.vue')['default']
