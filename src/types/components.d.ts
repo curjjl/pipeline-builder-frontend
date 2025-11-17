@@ -11,7 +11,6 @@ declare module 'vue' {
     AButton: typeof import('ant-design-vue/es')['Button']
     ACheckbox: typeof import('ant-design-vue/es')['Checkbox']
     ACheckboxGroup: typeof import('ant-design-vue/es')['CheckboxGroup']
-    AConfigProvider: typeof import('ant-design-vue/es')['ConfigProvider']
     AddColumnTransform: typeof import('./../components/pipeline/transforms/AddColumnTransform.vue')['default']
     ADivider: typeof import('ant-design-vue/es')['Divider']
     ADropdown: typeof import('ant-design-vue/es')['Dropdown']
