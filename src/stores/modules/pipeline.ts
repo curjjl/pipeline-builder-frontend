@@ -1,5 +1,5 @@
 import { defineStore } from 'pinia'
-import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
+import { getDatasetData, getDatasetDataById, getDatasetMeta } from '@/mock/datasets'
 import { applyTransforms, joinDatasets, type Transform, type TransformResult } from '@/utils/transform'
 
 export interface Node {
@@ -149,6 +149,36 @@ export const usePipelineStore = defineStore('pipeline', {
       }
     },
 
+    updateNodePosition(id: string, position: { x: number; y: number }) {
+      const node = this.nodes.find(n => n.id === id)
+      if (node) {
+        node.x = position.x
+        node.y = position.y
+        this.isDirty = true
+      }
+    },
+
+    updateNodeConfig(id: string, config: any) {
+      const node = this.nodes.find(n => n.id === id)
+      if (node) {
+        node.data = { ...node.data, ...config }
+        this.isDirty = true
+        this.clearDownstreamCache(id)
+      }
+    },
+
+    updateNodeLabel(id: string, label: string) {
+      const node = this.nodes.find(n => n.id === id)
+      if (node) {
+        node.name = label
+        this.isDirty = true
+      }
+    },
+
+    getEdgesByNode(nodeId: string): Edge[] {
+      return this.edges.filter(e => e.source === nodeId || e.target === nodeId)
+    },
+
     addEdge(edge: Edge) {
       // 确保 Map 对象正确初始化
       this.ensureMapsInitialized()
@@ -210,8 +240,8 @@ export const usePipelineStore = defineStore('pipeline', {
 
       switch (node.type) {
         case 'dataset':
-          // 数据集节点：直接从mock数据加载
-          data = getDatasetData(node.data.datasetId)
+          // 数据集节点：从数据集管理系统加载（支持用户导入的数据集）
+          data = getDatasetDataById(node.data.datasetId) || getDatasetData(node.data.datasetId)
           break
 
         case 'transform':

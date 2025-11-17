@@ -537,7 +537,81 @@ export function getDatasetMeta(datasetId: string): DatasetMeta | undefined {
   return datasetsMeta.find(meta => meta.id === datasetId)
 }
 
-// 获取所有数据集列表
+// 用户导入的数据集（内存存储）
+const userDatasets: Map<string, {meta: DatasetMeta; data: any[]}> = new Map()
+
+// 添加用户导入的数据集
+export function addUserDataset(name: string, data: any[], columns: string[]): string {
+  const id = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
+
+  // 推断列类型
+  const columnMetas: ColumnMeta[] = columns.map(col => {
+    const sampleValue = data[0]?.[col]
+    let type: 'String' | 'Number' | 'Date' | 'Boolean' = 'String'
+
+    if (typeof sampleValue === 'number') {
+      type = 'Number'
+    } else if (typeof sampleValue === 'boolean') {
+      type = 'Boolean'
+    } else if (sampleValue instanceof Date || !isNaN(Date.parse(sampleValue))) {
+      type = 'Date'
+    }
+
+    return {
+      name: col,
+      type,
+      nullable: true
+    }
+  })
+
+  const meta: DatasetMeta = {
+    id,
+    name: id,
+    displayName: name,
+    description: `User imported dataset: ${name}`,
+    rowCount: data.length,
+    columns: columnMetas
+  }
+
+  userDatasets.set(id, { meta, data })
+  return id
+}
+
+// 获取数据集数据（支持用户数据集）
+export function getDatasetDataById(datasetId: string): any[] {
+  // 先检查用户数据集
+  const userDataset = userDatasets.get(datasetId)
+  if (userDataset) {
+    return userDataset.data
+  }
+
+  // 再检查内置数据集
+  switch (datasetId) {
+    case 'products':
+      return productsData
+    case 'customers':
+      return customersData
+    case 'transactions':
+      return transactionsData
+    default:
+      return []
+  }
+}
+
+// 获取数据集元信息（支持用户数据集）
+export function getDatasetMetaById(datasetId: string): DatasetMeta | undefined {
+  // 先检查用户数据集
+  const userDataset = userDatasets.get(datasetId)
+  if (userDataset) {
+    return userDataset.meta
+  }
+
+  // 再检查内置数据集
+  return datasetsMeta.find(meta => meta.id === datasetId)
+}
+
+// 获取所有数据集列表（包含用户数据集）
 export function getAllDatasets(): DatasetMeta[] {
-  return datasetsMeta
+  const userMetas = Array.from(userDatasets.values()).map(ds => ds.meta)
+  return [...datasetsMeta, ...userMetas]
 }
