@@ -114,8 +114,13 @@ export function createDemoPipeline(): Pipeline {
         description: '关联产品信息和交易记录',
         joinConfig: {
           type: 'inner',
-          leftKey: 'product_id',
-          rightKey: 'product_id'
+          matchConditions: [
+            { leftColumn: 'product_id', rightColumn: 'product_id' }
+          ],
+          leftPrefix: '',
+          rightPrefix: '',
+          selectedLeftColumns: {},
+          selectedRightColumns: {}
         }
       }
     },
@@ -131,8 +136,13 @@ export function createDemoPipeline(): Pipeline {
         description: '关联客户信息，获取完整的客户购买数据',
         joinConfig: {
           type: 'inner',
-          leftKey: 'customer_id',
-          rightKey: 'customer_id'
+          matchConditions: [
+            { leftColumn: 'customer_id', rightColumn: 'customer_id' }
+          ],
+          leftPrefix: '',
+          rightPrefix: '',
+          selectedLeftColumns: {},
+          selectedRightColumns: {}
         }
       }
     },

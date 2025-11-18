@@ -89,7 +89,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive, computed, toRefs } from 'vue'
+import { reactive, computed, toRefs, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { DeleteOutlined, PlusOutlined } from '@ant-design/icons-vue'
 
@@ -108,6 +108,7 @@ interface Condition {
 
 interface Props {
   columns: Column[]
+  initialConfig?: any
 }
 
 const props = defineProps<Props>()
@@ -130,6 +131,29 @@ const formData = reactive<{
     { column: '', operator: 'equals', value: '' }
   ]
 })
+
+// Load initial configuration if provided
+function loadInitialConfig() {
+  if (props.initialConfig) {
+    console.log('FilterTransform loading initial config:', props.initialConfig)
+    if (props.initialConfig.matchType) {
+      formData.matchType = props.initialConfig.matchType
+    }
+    if (props.initialConfig.conditions && props.initialConfig.conditions.length > 0) {
+      formData.conditions = props.initialConfig.conditions.map((c: any) => ({ ...c }))
+    }
+  }
+}
+
+// Load config on mount
+onMounted(() => {
+  loadInitialConfig()
+})
+
+// Watch for changes to initialConfig
+watch(() => props.initialConfig, () => {
+  loadInitialConfig()
+}, { deep: true })
 
 const isValid = computed(() => {
   return formData.conditions.every(c =>
