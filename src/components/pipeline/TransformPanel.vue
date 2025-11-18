@@ -447,9 +447,13 @@ function getLastConfigForType(type: string) {
   // 从后向前查找第一个匹配的transform类型
   for (let i = props.appliedTransforms.length - 1; i >= 0; i--) {
     const transform = props.appliedTransforms[i]
-    if (transform.type === type && transform.params) {
-      console.log(`TransformPanel: Found existing config for ${type}:`, transform.params)
-      return transform.params
+    if (transform.type === type) {
+      // 优先使用config字段(新版),向后兼容params字段(旧版)
+      const config = transform.config || transform.params
+      if (config) {
+        console.log(`TransformPanel: Found existing config for ${type}:`, config)
+        return config
+      }
     }
   }
 
@@ -462,7 +466,7 @@ function handleApply(transformConfig: any) {
     id: Date.now().toString(),
     type: selectedTransform.value,
     name: selectedTransformData.value?.name || 'Transform',
-    params: transformConfig,
+    config: transformConfig,  // 使用config字段(新版标准)
     enabled: true
   })
 
