@@ -207,11 +207,11 @@
 
     <!-- Main content area -->
     <div class="main-content">
-      <!-- Node Palette -->
-      <NodePalette
+      <!-- Node Palette - Hidden -->
+      <!-- <NodePalette
         @node-drag-start="handleNodeDragStart"
         @node-drag-end="handleNodeDragEnd"
-      />
+      /> -->
 
       <!-- Canvas area -->
       <div class="canvas-area"
@@ -846,7 +846,7 @@ import ContextMenu from '@/components/common/ContextMenu.vue'
 import DataPreviewPanel from '@/components/pipeline/DataPreviewPanel.vue'
 import TransformPanel from '@/components/pipeline/TransformPanel.vue'
 import JoinPanel from '@/components/pipeline/JoinPanel.vue'
-import NodePalette from '@/components/pipeline/NodePalette.vue'
+// import NodePalette from '@/components/pipeline/NodePalette.vue' // Hidden
 import DataImportDialog from '@/components/pipeline/DataImportDialog.vue'
 import NodeSearchPanel from '@/components/pipeline/NodeSearchPanel.vue'
 import ExecutionMonitor from '@/components/pipeline/ExecutionMonitor.vue'
