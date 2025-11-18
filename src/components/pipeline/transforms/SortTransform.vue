@@ -40,7 +40,7 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue'
+import { reactive, watch, onMounted } from 'vue'
 
 interface Column {
   name: string
@@ -49,9 +49,10 @@ interface Column {
 
 interface Props {
   columns: Column[]
+  initialConfig?: any
 }
 
-defineProps<Props>()
+const props = defineProps<Props>()
 
 const emit = defineEmits<{
   apply: [config: any]
@@ -62,6 +63,29 @@ const formData = reactive({
   column: '',
   order: 'asc' as 'asc' | 'desc'
 })
+
+// Load initial configuration if provided
+function loadInitialConfig() {
+  if (props.initialConfig) {
+    console.log('SortTransform loading initial config:', props.initialConfig)
+    if (props.initialConfig.column) {
+      formData.column = props.initialConfig.column
+    }
+    if (props.initialConfig.order) {
+      formData.order = props.initialConfig.order
+    }
+  }
+}
+
+// Load config on mount
+onMounted(() => {
+  loadInitialConfig()
+})
+
+// Watch for changes to initialConfig
+watch(() => props.initialConfig, () => {
+  loadInitialConfig()
+}, { deep: true })
 
 function handleApply() {
   emit('apply', formData)

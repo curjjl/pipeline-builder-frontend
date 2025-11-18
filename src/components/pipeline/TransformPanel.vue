@@ -91,6 +91,7 @@
         <FilterTransform
           v-if="selectedTransform === 'filter'"
           :columns="availableColumns"
+          :initial-config="getLastConfigForType('filter')"
           @apply="handleApply"
           @cancel="handleCancel"
         />
@@ -99,6 +100,7 @@
         <GroupByTransform
           v-else-if="selectedTransform === 'group-by'"
           :columns="availableColumns"
+          :initial-config="getLastConfigForType('group-by')"
           @apply="handleApply"
           @cancel="handleCancel"
         />
@@ -107,6 +109,7 @@
         <SortTransform
           v-else-if="selectedTransform === 'sort'"
           :columns="availableColumns"
+          :initial-config="getLastConfigForType('sort')"
           @apply="handleApply"
           @cancel="handleCancel"
         />
@@ -433,6 +436,24 @@ function selectTransform(transform: any) {
 // 清除选择
 function handleClear() {
   searchText.value = ''
+}
+
+// 获取指定类型的最后一个配置（用于回显）
+function getLastConfigForType(type: string) {
+  if (!props.appliedTransforms || props.appliedTransforms.length === 0) {
+    return undefined
+  }
+
+  // 从后向前查找第一个匹配的transform类型
+  for (let i = props.appliedTransforms.length - 1; i >= 0; i--) {
+    const transform = props.appliedTransforms[i]
+    if (transform.type === type && transform.params) {
+      console.log(`TransformPanel: Found existing config for ${type}:`, transform.params)
+      return transform.params
+    }
+  }
+
+  return undefined
 }
 
 // 应用转换
