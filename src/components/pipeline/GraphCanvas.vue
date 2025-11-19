@@ -42,12 +42,14 @@ const emit = defineEmits<{
   'edge:click': [edge: Edge]
   'edge:contextmenu': [payload: { edge: Edge; event: MouseEvent }]
   'canvas:click': []
+  'canvas:contextmenu': [payload: { event: MouseEvent }]
   'node:added': [node: Node]
   'edge:added': [edge: Edge]
   'edge:removed': [edge: Edge]
   'node:moved': [payload: { node: Node; position: { x: number; y: number } }]
   'nodes:copied': [count: number]
   'nodes:pasted': [count: number]
+  'scale:changed': [scale: number]
 }>()
 
 const containerRef = ref<HTMLDivElement>()
@@ -222,7 +224,7 @@ const initGraph = () => {
         multiple: true,
         movable: true,
         showNodeSelectionBox: true,
-        modifiers: 'shift',
+        modifiers: ['shift', 'ctrl', 'meta'],  // 支持 Shift/Ctrl/Cmd 多选
         rubberEdge: true,
         rubberNode: true,
         strict: false,
@@ -237,7 +239,9 @@ const initGraph = () => {
         // 过滤器：只选择可见的节点和边
         filter: (cell) => {
           return cell.isVisible()
-        }
+        },
+        // 多选模式配置
+        multipleSelectionModifiers: ['ctrl', 'meta']  // Ctrl/Cmd 点击切换选择
       })
     )
     .use(
@@ -335,6 +339,17 @@ const bindEvents = () => {
     emit('canvas:click')
     graph?.cleanSelection()
     pasteCount.value = 0  // 重置粘贴计数
+  })
+
+  // 画布右键菜单
+  graph.on('blank:contextmenu', ({ e }) => {
+    e.preventDefault()
+    emit('canvas:contextmenu', { event: e as MouseEvent })
+  })
+
+  // 缩放变化监听
+  graph.on('scale', ({ sx }) => {
+    emit('scale:changed', Math.round(sx * 100))
   })
 
   // 连接创建
@@ -687,6 +702,67 @@ const bindEvents = () => {
     // 阻止浏览器默认保存行为
     return false
   })
+
+  // 复制选中节点 (Ctrl+D)
+  graph.bindKey(['ctrl+d', 'meta+d'], () => {
+    const cells = graph!.getSelectedCells()
+    if (cells.length) {
+      graph!.copy(cells)
+      const pastedCells = graph!.paste({ offset: 30 })
+      graph!.cleanSelection()
+      graph!.select(pastedCells)
+
+      // 触发事件
+      const nodeCount = pastedCells.filter(cell => cell.isNode()).length
+      if (nodeCount > 0) {
+        emit('nodes:pasted', nodeCount)
+        pastedCells.filter(cell => cell.isNode()).forEach(node => {
+          const nodeData = node.getData()
+          if (nodeData) {
+            emit('node:added', nodeData)
+          }
+        })
+      }
+    }
+    return false
+  })
+
+  // 重置缩放到 100% (Ctrl+0)
+  graph.bindKey(['ctrl+0', 'meta+0'], () => {
+    graph!.zoomTo(1)
+    graph!.centerContent()
+    return false
+  })
+
+  // 缩放到适应窗口 (Ctrl+1)
+  graph.bindKey(['ctrl+1', 'meta+1'], () => {
+    graph!.zoomToFit({ padding: 20, maxScale: 1 })
+    return false
+  })
+
+  // 放大 (Ctrl+=)
+  graph.bindKey(['ctrl+=', 'meta+=', 'ctrl+shift+=', 'meta+shift+='], () => {
+    graph!.zoom(0.1)
+    return false
+  })
+
+  // 缩小 (Ctrl+-)
+  graph.bindKey(['ctrl+-', 'meta+-'], () => {
+    graph!.zoom(-0.1)
+    return false
+  })
+
+  // F2 重命名节点
+  graph.bindKey('f2', () => {
+    const cells = graph!.getSelectedCells()
+    if (cells.length === 1 && cells[0].isNode()) {
+      const nodeData = cells[0].getData() as Node
+      if (nodeData) {
+        emit('node:dblclick', nodeData)  // 触发双击事件来打开重命名
+      }
+    }
+    return false
+  })
 }
 
 // 添加节点
@@ -993,6 +1069,234 @@ const refreshGraph = () => {
   }
 }
 
+// 设置导航模式
+const setNavigationMode = (mode: 'panning' | 'select') => {
+  if (!graph) return
+
+  if (mode === 'panning') {
+    // 平移模式：启用平移，禁用框选
+    graph.disableRubberband()
+    graph.enablePanning()
+  } else {
+    // 选择模式：禁用平移，启用框选
+    graph.disablePanning()
+    graph.enableRubberband()
+  }
+}
+
+// 获取当前缩放比例
+const getZoom = (): number => {
+  if (!graph) return 100
+  return Math.round(graph.zoom() * 100)
+}
+
+// 设置缩放比例
+const setZoom = (scale: number) => {
+  if (!graph) return
+  graph.zoomTo(scale / 100)
+}
+
+// 对齐节点
+const alignNodes = (direction: 'left' | 'right' | 'top' | 'bottom' | 'center-h' | 'center-v') => {
+  if (!graph) return
+
+  const selectedNodes = graph.getSelectedCells().filter(cell => cell.isNode())
+  if (selectedNodes.length < 2) return
+
+  const boxes = selectedNodes.map(node => ({
+    node,
+    bbox: node.getBBox()
+  }))
+
+  switch (direction) {
+    case 'left': {
+      const minX = Math.min(...boxes.map(b => b.bbox.x))
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(minX, bbox.y)
+      })
+      break
+    }
+    case 'right': {
+      const maxX = Math.max(...boxes.map(b => b.bbox.x + b.bbox.width))
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(maxX - bbox.width, bbox.y)
+      })
+      break
+    }
+    case 'top': {
+      const minY = Math.min(...boxes.map(b => b.bbox.y))
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, minY)
+      })
+      break
+    }
+    case 'bottom': {
+      const maxY = Math.max(...boxes.map(b => b.bbox.y + b.bbox.height))
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, maxY - bbox.height)
+      })
+      break
+    }
+    case 'center-h': {
+      const centerY = boxes.reduce((sum, b) => sum + b.bbox.y + b.bbox.height / 2, 0) / boxes.length
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(bbox.x, centerY - bbox.height / 2)
+      })
+      break
+    }
+    case 'center-v': {
+      const centerX = boxes.reduce((sum, b) => sum + b.bbox.x + b.bbox.width / 2, 0) / boxes.length
+      boxes.forEach(({ node, bbox }) => {
+        node.setPosition(centerX - bbox.width / 2, bbox.y)
+      })
+      break
+    }
+  }
+
+  // 触发移动事件
+  selectedNodes.forEach(node => {
+    const nodeData = node.getData() as Node
+    const position = node.getPosition()
+    emit('node:moved', { node: nodeData, position })
+  })
+}
+
+// 分布节点
+const distributeNodes = (direction: 'horizontal' | 'vertical') => {
+  if (!graph) return
+
+  const selectedNodes = graph.getSelectedCells().filter(cell => cell.isNode())
+  if (selectedNodes.length < 3) return
+
+  const boxes = selectedNodes.map(node => ({
+    node,
+    bbox: node.getBBox()
+  }))
+
+  if (direction === 'horizontal') {
+    // 按 x 坐标排序
+    boxes.sort((a, b) => a.bbox.x - b.bbox.x)
+    const first = boxes[0].bbox.x
+    const last = boxes[boxes.length - 1].bbox.x
+    const spacing = (last - first) / (boxes.length - 1)
+
+    boxes.forEach(({ node, bbox }, index) => {
+      if (index > 0 && index < boxes.length - 1) {
+        node.setPosition(first + spacing * index, bbox.y)
+      }
+    })
+  } else {
+    // 按 y 坐标排序
+    boxes.sort((a, b) => a.bbox.y - b.bbox.y)
+    const first = boxes[0].bbox.y
+    const last = boxes[boxes.length - 1].bbox.y
+    const spacing = (last - first) / (boxes.length - 1)
+
+    boxes.forEach(({ node, bbox }, index) => {
+      if (index > 0 && index < boxes.length - 1) {
+        node.setPosition(bbox.x, first + spacing * index)
+      }
+    })
+  }
+
+  // 触发移动事件
+  selectedNodes.forEach(node => {
+    const nodeData = node.getData() as Node
+    const position = node.getPosition()
+    emit('node:moved', { node: nodeData, position })
+  })
+}
+
+// 高亮上下游节点
+const highlightRelatedNodes = (nodeId: string, direction: 'upstream' | 'downstream' | 'both') => {
+  if (!graph) return
+
+  const edges = graph.getEdges()
+  const relatedIds = new Set<string>()
+
+  const findUpstream = (id: string) => {
+    edges.forEach(edge => {
+      if (edge.getTargetCellId() === id) {
+        const sourceId = edge.getSourceCellId()
+        if (!relatedIds.has(sourceId)) {
+          relatedIds.add(sourceId)
+          findUpstream(sourceId)
+        }
+      }
+    })
+  }
+
+  const findDownstream = (id: string) => {
+    edges.forEach(edge => {
+      if (edge.getSourceCellId() === id) {
+        const targetId = edge.getTargetCellId()
+        if (!relatedIds.has(targetId)) {
+          relatedIds.add(targetId)
+          findDownstream(targetId)
+        }
+      }
+    })
+  }
+
+  if (direction === 'upstream' || direction === 'both') {
+    findUpstream(nodeId)
+  }
+  if (direction === 'downstream' || direction === 'both') {
+    findDownstream(nodeId)
+  }
+
+  // 高亮相关节点
+  graph.getNodes().forEach(node => {
+    if (relatedIds.has(node.id)) {
+      node.attr('body/stroke', '#10B981')
+      node.attr('body/strokeWidth', 3)
+    } else if (node.id !== nodeId) {
+      node.attr('body/opacity', 0.3)
+    }
+  })
+
+  // 高亮相关边
+  edges.forEach(edge => {
+    const sourceId = edge.getSourceCellId()
+    const targetId = edge.getTargetCellId()
+    if (relatedIds.has(sourceId) || relatedIds.has(targetId) || sourceId === nodeId || targetId === nodeId) {
+      if ((direction === 'upstream' || direction === 'both') && relatedIds.has(sourceId)) {
+        edge.attr('line/stroke', '#10B981')
+        edge.attr('line/strokeWidth', 3)
+      } else if ((direction === 'downstream' || direction === 'both') && relatedIds.has(targetId)) {
+        edge.attr('line/stroke', '#3B82F6')
+        edge.attr('line/strokeWidth', 3)
+      }
+    } else {
+      edge.attr('line/opacity', 0.2)
+    }
+  })
+}
+
+// 清除高亮
+const clearHighlight = () => {
+  if (!graph) return
+
+  graph.getNodes().forEach(node => {
+    node.attr('body/opacity', 1)
+    const selectedCells = graph!.getSelectedCells()
+    const isSelected = selectedCells.some(cell => cell.id === node.id)
+    if (isSelected) {
+      node.attr('body/stroke', '#2D6EED')
+      node.attr('body/strokeWidth', 2)
+    } else {
+      node.attr('body/stroke', '#D0D5DD')
+      node.attr('body/strokeWidth', 1)
+    }
+  })
+
+  graph.getEdges().forEach(edge => {
+    edge.attr('line/opacity', 1)
+    edge.attr('line/stroke', '#98A2B3')
+    edge.attr('line/strokeWidth', 2)
+  })
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -1002,7 +1306,14 @@ defineExpose({
   updateNodeData,
   getGraph: () => graph,
   autoLayout,
-  refreshGraph
+  refreshGraph,
+  setNavigationMode,
+  getZoom,
+  setZoom,
+  alignNodes,
+  distributeNodes,
+  highlightRelatedNodes,
+  clearHighlight
 })
 </script>
 
