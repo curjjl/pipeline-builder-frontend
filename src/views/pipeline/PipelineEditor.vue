@@ -230,8 +230,10 @@
           @edge:added="handleEdgeAdded"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
+          @canvas:contextmenu="handleCanvasContextMenu"
           @nodes:copied="handleNodesCopied"
           @nodes:pasted="handleNodesPasted"
+          @scale:changed="handleScaleChanged"
         />
 
         <!-- Node Search Panel -->
@@ -958,6 +960,13 @@ watch(showJoinConfig, (newVal) => {
 watch(selectedJoinNode, (newVal) => {
   console.log('selectedJoinNode changed:', newVal?.name)
 })
+
+// 监听导航模式切换
+watch(currentTool, (newVal) => {
+  if (canvasRef.value) {
+    canvasRef.value.setNavigationMode(newVal === 'move' ? 'panning' : 'select')
+  }
+})
 const snapToGrid = ref(true)
 const autoLayout = ref(false)
 
@@ -1365,30 +1374,21 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
   contextMenuX.value = event.clientX
   contextMenuY.value = event.clientY
 
-  contextMenuItems.value = [
+  // 检查是否有多个节点被选中
+  const selectedCount = pipelineStore.selectedNodes.length
+  const hasMultipleSelection = selectedCount > 1
+
+  const baseItems = [
     {
       key: 'open',
       label: 'Open',
       icon: 'folder-open'
     },
     {
-      key: 'actions',
-      label: 'Actions',
-      icon: 'thunderbolt',
-      children: [
-        { key: 'action-1', label: 'Action 1' },
-        { key: 'action-2', label: 'Action 2' }
-      ]
-    },
-    {
       key: 'rename',
       label: 'Rename',
-      icon: 'edit'
-    },
-    {
-      key: 'copy-rid',
-      label: 'Copy RID',
-      icon: 'copy'
+      icon: 'edit',
+      shortcut: 'F2'
     },
     {
       type: 'divider'
@@ -1396,21 +1396,70 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
     {
       key: 'copy',
       label: 'Copy',
-      icon: 'copy'
-    },
-    {
-      key: 'paste',
-      label: 'Paste',
-      icon: 'snippets'
+      icon: 'copy',
+      shortcut: '⌘C'
     },
     {
       key: 'duplicate',
       label: 'Duplicate',
-      icon: 'copy'
+      icon: 'copy',
+      shortcut: '⌘D'
     },
     {
       type: 'divider'
+    }
+  ]
+
+  // 多选时添加对齐和分布选项
+  const alignItems = hasMultipleSelection ? [
+    {
+      key: 'align',
+      label: 'Align',
+      icon: 'align-left',
+      children: [
+        { key: 'align-left', label: 'Align Left', icon: 'align-left' },
+        { key: 'align-right', label: 'Align Right', icon: 'align-right' },
+        { key: 'align-top', label: 'Align Top', icon: 'vertical-align-top' },
+        { key: 'align-bottom', label: 'Align Bottom', icon: 'vertical-align-bottom' },
+        { type: 'divider' },
+        { key: 'align-center-h', label: 'Align Center Horizontal', icon: 'align-center' },
+        { key: 'align-center-v', label: 'Align Center Vertical', icon: 'vertical-align-middle' }
+      ]
     },
+    {
+      key: 'distribute',
+      label: 'Distribute',
+      icon: 'column-width',
+      children: [
+        { key: 'distribute-h', label: 'Distribute Horizontally', icon: 'column-width' },
+        { key: 'distribute-v', label: 'Distribute Vertically', icon: 'column-height' }
+      ],
+      disabled: selectedCount < 3
+    },
+    {
+      type: 'divider'
+    }
+  ] : []
+
+  const highlightItems = [
+    {
+      key: 'highlight',
+      label: 'Highlight',
+      icon: 'highlight',
+      children: [
+        { key: 'highlight-upstream', label: 'Highlight Upstream', icon: 'arrow-up' },
+        { key: 'highlight-downstream', label: 'Highlight Downstream', icon: 'arrow-down' },
+        { key: 'highlight-both', label: 'Highlight Both', icon: 'swap' },
+        { type: 'divider' },
+        { key: 'clear-highlight', label: 'Clear Highlight', icon: 'close' }
+      ]
+    },
+    {
+      type: 'divider'
+    }
+  ]
+
+  const dataItems = [
     {
       key: 'preview',
       label: 'Preview data',
@@ -1431,11 +1480,14 @@ function handleNodeContextMenu({ node, event }: { node: Node; event: MouseEvent 
     },
     {
       key: 'delete',
-      label: 'Remove node',
+      label: hasMultipleSelection ? `Delete ${selectedCount} nodes` : 'Delete node',
       icon: 'minus-circle',
-      danger: true
+      danger: true,
+      shortcut: 'Del'
     }
   ]
+
+  contextMenuItems.value = [...baseItems, ...alignItems, ...highlightItems, ...dataItems]
   contextMenuVisible.value = true
 }
 
@@ -1579,12 +1631,42 @@ function handleNodesPasted(count: number) {
 // Context menu select
 function handleContextMenuSelect(key: string) {
   const target = contextMenuTarget.value
+  const graph = canvasRef.value?.getGraph()
 
-  if (!target) return
+  // 处理画布菜单项（无 target）
+  if (!target) {
+    switch (key) {
+      case 'paste':
+        if (graph && !graph.isClipboardEmpty()) {
+          const cells = graph.paste({ offset: 30 })
+          graph.cleanSelection()
+          graph.select(cells)
+          message.success(`Pasted ${cells.filter((c: any) => c.isNode()).length} node(s)`)
+        }
+        break
+      case 'select-all':
+        handleSelectAll()
+        break
+      case 'zoom-fit':
+        handleZoom('fit')
+        break
+      case 'zoom-100':
+        if (graph) {
+          graph.zoomTo(1)
+          graph.centerContent()
+        }
+        break
+      case 'auto-layout':
+        handleAutoLayout()
+        break
+    }
+    contextMenuVisible.value = false
+    return
+  }
 
   switch (key) {
     case 'open':
-      message.info(`Opening ${target.name || 'node'}...`)
+      handleNodeDoubleClick(target)
       break
     case 'rename':
       renameNode(target)
@@ -1594,11 +1676,21 @@ function handleContextMenuSelect(key: string) {
       message.success('RID copied to clipboard')
       break
     case 'copy':
-      // 复制节点到剪贴板（已实现快捷键）
-      message.info('Copy functionality')
+      if (graph) {
+        const cells = graph.getSelectedCells()
+        if (cells.length) {
+          graph.copy(cells)
+          message.success(`Copied ${cells.filter((c: any) => c.isNode()).length} node(s)`)
+        }
+      }
       break
     case 'paste':
-      message.info('Paste functionality')
+      if (graph && !graph.isClipboardEmpty()) {
+        const cells = graph.paste({ offset: 30 })
+        graph.cleanSelection()
+        graph.select(cells)
+        message.success(`Pasted ${cells.filter((c: any) => c.isNode()).length} node(s)`)
+      }
       break
     case 'duplicate':
       duplicateNode(target)
@@ -1612,6 +1704,57 @@ function handleContextMenuSelect(key: string) {
     case 'transform':
       handleNodeDoubleClick(target)
       break
+    // 对齐功能
+    case 'align-left':
+      canvasRef.value?.alignNodes('left')
+      message.success('Aligned left')
+      break
+    case 'align-right':
+      canvasRef.value?.alignNodes('right')
+      message.success('Aligned right')
+      break
+    case 'align-top':
+      canvasRef.value?.alignNodes('top')
+      message.success('Aligned top')
+      break
+    case 'align-bottom':
+      canvasRef.value?.alignNodes('bottom')
+      message.success('Aligned bottom')
+      break
+    case 'align-center-h':
+      canvasRef.value?.alignNodes('center-h')
+      message.success('Aligned center horizontally')
+      break
+    case 'align-center-v':
+      canvasRef.value?.alignNodes('center-v')
+      message.success('Aligned center vertically')
+      break
+    // 分布功能
+    case 'distribute-h':
+      canvasRef.value?.distributeNodes('horizontal')
+      message.success('Distributed horizontally')
+      break
+    case 'distribute-v':
+      canvasRef.value?.distributeNodes('vertical')
+      message.success('Distributed vertically')
+      break
+    // 高亮功能
+    case 'highlight-upstream':
+      canvasRef.value?.highlightRelatedNodes(target.id, 'upstream')
+      message.info('Upstream nodes highlighted')
+      break
+    case 'highlight-downstream':
+      canvasRef.value?.highlightRelatedNodes(target.id, 'downstream')
+      message.info('Downstream nodes highlighted')
+      break
+    case 'highlight-both':
+      canvasRef.value?.highlightRelatedNodes(target.id, 'both')
+      message.info('Related nodes highlighted')
+      break
+    case 'clear-highlight':
+      canvasRef.value?.clearHighlight()
+      message.info('Highlight cleared')
+      break
     case 'delete':
       if (target.source) {
         // Edge - use command pattern for undo/redo support
@@ -1622,19 +1765,26 @@ function handleContextMenuSelect(key: string) {
           message.success('Connection deleted')
         }
       } else {
-        // Node - use command pattern for undo/redo support
-        const node = nodes.value.find(n => n.id === target.id)
-        if (node) {
-          const relatedEdges = pipelineStore.getEdgesByNode(target.id)
-          const command = new DeleteNodeCommand(node, relatedEdges, pipelineStore)
-          historyStore.executeCommand(command)
-          message.success('Node deleted')
+        // Node - 检查是否有多选
+        const selectedIds = pipelineStore.selectedNodes
+        if (selectedIds.length > 1) {
+          // 批量删除
+          handleDeleteSelected()
+        } else {
+          // 单个删除
+          const node = nodes.value.find(n => n.id === target.id)
+          if (node) {
+            const relatedEdges = pipelineStore.getEdgesByNode(target.id)
+            const command = new DeleteNodeCommand(node, relatedEdges, pipelineStore)
+            historyStore.executeCommand(command)
+            message.success('Node deleted')
+          }
         }
       }
       break
     default:
       // 处理子菜单项
-      message.info(`Menu action: ${key}`)
+      console.log(`Menu action: ${key}`)
   }
 
   contextMenuVisible.value = false
@@ -1915,20 +2065,77 @@ function handleBottomTabChange(key: string) {
 function handleZoom(type: 'in' | 'out' | 'fit') {
   if (!canvasRef.value) return
 
+  const graph = canvasRef.value.getGraph()
+  if (!graph) return
+
   switch (type) {
     case 'in':
-      canvasRef.value.zoom(0.1)
-      zoomLevel.value = Math.min(200, zoomLevel.value + 10)
+      graph.zoom(0.1)
       break
     case 'out':
-      canvasRef.value.zoom(-0.1)
-      zoomLevel.value = Math.max(10, zoomLevel.value - 10)
+      graph.zoom(-0.1)
       break
     case 'fit':
-      canvasRef.value.centerContent()
-      zoomLevel.value = 100
+      graph.zoomToFit({ padding: 20, maxScale: 1 })
       break
   }
+  // 缩放值会通过 scale:changed 事件自动更新
+}
+
+// 缩放变化处理
+function handleScaleChanged(scale: number) {
+  zoomLevel.value = scale
+}
+
+// 画布右键菜单
+function handleCanvasContextMenu({ event }: { event: MouseEvent }) {
+  event.preventDefault()
+
+  contextMenuTarget.value = null
+  contextMenuX.value = event.clientX
+  contextMenuY.value = event.clientY
+
+  contextMenuItems.value = [
+    {
+      key: 'paste',
+      label: 'Paste',
+      icon: 'snippets',
+      disabled: !canvasRef.value?.getGraph()?.isClipboardEmpty?.() === false
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'select-all',
+      label: 'Select All',
+      icon: 'select',
+      shortcut: '⌘A'
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'zoom-fit',
+      label: 'Fit to Screen',
+      icon: 'compress',
+      shortcut: '⌘1'
+    },
+    {
+      key: 'zoom-100',
+      label: 'Zoom to 100%',
+      icon: 'zoom-in',
+      shortcut: '⌘0'
+    },
+    {
+      type: 'divider'
+    },
+    {
+      key: 'auto-layout',
+      label: 'Auto Layout',
+      icon: 'partition'
+    }
+  ]
+  contextMenuVisible.value = true
 }
 
 // Toggle right panel collapse/expand
