@@ -113,7 +113,7 @@ export function registerDatasetNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示，提升新手体验
               }
             }
           }
@@ -225,7 +225,7 @@ export function registerTransformNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示
               }
             }
           },
@@ -238,7 +238,7 @@ export function registerTransformNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示
               }
             }
           }
@@ -351,7 +351,7 @@ export function registerJoinNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示
               }
             }
           },
@@ -364,7 +364,7 @@ export function registerJoinNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示
               }
             }
           }
@@ -478,7 +478,7 @@ export function registerOutputNode() {
                 stroke: '#5F6368',
                 strokeWidth: 2,
                 fill: '#FFFFFF',
-                opacity: 0
+                opacity: 0.3  // ✅ 优化：默认半透明显示
               }
             }
           }

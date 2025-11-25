@@ -7,6 +7,45 @@
         <span class="selection-label">{{ selectedCount === 1 ? 'item' : 'items' }} selected</span>
       </div>
     </transition>
+
+    <!-- ✅ 新增：Toast 提示 -->
+    <transition name="toast">
+      <div v-if="toastVisible" :class="['canvas-toast', `toast-${toastType}`]">
+        <span class="toast-icon">
+          {{ toastType === 'success' ? '✓' : toastType === 'error' ? '✗' : toastType === 'warning' ? '⚠' : 'ℹ' }}
+        </span>
+        <span class="toast-message">{{ toastMessage }}</span>
+      </div>
+    </transition>
+
+    <!-- ✅ 新增：导航工具栏 -->
+    <div class="canvas-toolbar">
+      <!-- 缩放显示 -->
+      <div class="zoom-display">{{ currentZoom }}%</div>
+
+      <!-- 工具按钮 -->
+      <div class="toolbar-divider"></div>
+      <button class="toolbar-btn" @click="handleZoomIn" title="放大 (Ctrl+=)">
+        <span class="icon">+</span>
+      </button>
+
+      <button class="toolbar-btn" @click="handleZoomOut" title="缩小 (Ctrl+-)">
+        <span class="icon">−</span>
+      </button>
+
+      <div class="toolbar-divider"></div>
+      <button class="toolbar-btn" @click="handleZoomToFit" title="适应窗口 (Ctrl+1)">
+        <span class="icon">⊡</span>
+      </button>
+
+      <button class="toolbar-btn" @click="handleZoomToActual" title="实际大小 (Ctrl+0)">
+        <span class="icon">1:1</span>
+      </button>
+
+      <button class="toolbar-btn" @click="handleCenter" title="居中显示">
+        <span class="icon">⊙</span>
+      </button>
+    </div>
   </div>
 </template>
 
@@ -26,12 +65,14 @@ interface Props {
   nodes?: Node[]
   edges?: Edge[]
   showMinimap?: boolean
+  showGrid?: boolean  // ✅ 新增：是否显示网格
 }
 
 const props = withDefaults(defineProps<Props>(), {
   nodes: () => [],
   edges: () => [],
-  showMinimap: true
+  showMinimap: true,
+  showGrid: true      // ✅ 默认显示网格
 })
 
 const emit = defineEmits<{
@@ -56,6 +97,11 @@ const containerRef = ref<HTMLDivElement>()
 const selectedCount = ref(0)
 const pasteCount = ref(0)
 const lastCopiedCells = ref<any[]>([])
+const currentZoom = ref(100)  // ✅ 新增：当前缩放比例
+const toastMessage = ref('')  // ✅ 新增：Toast 消息
+const toastType = ref<'success' | 'info' | 'warning' | 'error'>('info')
+const toastVisible = ref(false)
+let toastTimer: number | null = null
 let graph: Graph | null = null
 
 // 初始化图编辑器
@@ -74,7 +120,13 @@ const initGraph = () => {
       color: '#F1F3F4'
     },
     grid: {
-      visible: false
+      visible: props.showGrid,  // ✅ 优化：支持可选网格显示
+      size: 10,                 // 网格大小
+      type: 'dot',              // 网格类型：dot（点）或 mesh（网格线）
+      args: {
+        color: '#D0D5DD',       // 网格颜色
+        thickness: 1            // 网格线粗细
+      }
     },
     panning: {
       enabled: true,
@@ -349,7 +401,9 @@ const bindEvents = () => {
 
   // 缩放变化监听
   graph.on('scale', ({ sx }) => {
-    emit('scale:changed', Math.round(sx * 100))
+    const zoom = Math.round(sx * 100)
+    currentZoom.value = zoom  // ✅ 更新缩放显示
+    emit('scale:changed', zoom)
   })
 
   // 连接创建
@@ -398,10 +452,10 @@ const bindEvents = () => {
     const isSelected = selectedCells.some(cell => cell.id === node.id)
 
     if (!isSelected) {
-      // 隐藏端口
+      // ✅ 优化：恢复到半透明状态（而非完全隐藏）
       const ports = node.getPorts()
       ports.forEach(port => {
-        node.setPortProp(port.id!, 'attrs/circle/opacity', 0)
+        node.setPortProp(port.id!, 'attrs/circle/opacity', 0.3)  // 半透明
         node.setPortProp(port.id!, 'attrs/circle/r', 6)
         node.setPortProp(port.id!, 'attrs/circle/stroke', '#5F6368')
         node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2)
@@ -459,10 +513,10 @@ const bindEvents = () => {
     node.attr('body/strokeWidth', 1)
     node.removeTools()
 
-    // 取消选中时隐藏端口
+    // ✅ 优化：取消选中时恢复到半透明状态
     const ports = node.getPorts()
     ports.forEach(port => {
-      node.setPortProp(port.id!, 'attrs/circle/opacity', 0)
+      node.setPortProp(port.id!, 'attrs/circle/opacity', 0.3)  // 半透明
       node.setPortProp(port.id!, 'attrs/circle/stroke', '#5F6368')
       node.setPortProp(port.id!, 'attrs/circle/strokeWidth', 2)
     })
@@ -496,8 +550,8 @@ const bindEvents = () => {
       node.setPortProp(port, 'attrs/circle/strokeWidth', 2.5)
       node.setPortProp(port, 'attrs/circle/fill', '#FFFFFF')
     } else {
-      // 否则恢复默认状态
-      node.setPortProp(port, 'attrs/circle/opacity', 0)
+      // ✅ 优化：否则恢复到半透明状态
+      node.setPortProp(port, 'attrs/circle/opacity', 0.3)  // 半透明
       node.setPortProp(port, 'attrs/circle/r', 6)
       node.setPortProp(port, 'attrs/circle/stroke', '#5F6368')
       node.setPortProp(port, 'attrs/circle/strokeWidth', 2)
@@ -531,9 +585,15 @@ const bindEvents = () => {
             distance: '50%',
             offset: { x: 0, y: -15 },
             onClick({ view }: any) {
+              // ✅ 优化：先触发事件通知父组件，让父组件处理数据同步后再删除视图
               const edgeData = edge.getData() as Edge
               emit('edge:removed', edgeData)
-              view.cell.remove()
+              // 延迟删除，给父组件时间处理（避免数据不同步）
+              setTimeout(() => {
+                if (view.cell && !view.cell.removed) {
+                  view.cell.remove()
+                }
+              }, 10)
             }
           }
         }
@@ -586,7 +646,7 @@ const bindEvents = () => {
   })
 
   // 键盘快捷键
-  // 复制
+  // 复制（✅ 优化：添加操作提示）
   graph.bindKey(['ctrl+c', 'meta+c'], () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
@@ -598,17 +658,37 @@ const bindEvents = () => {
       const nodeCount = cells.filter(cell => cell.isNode()).length
       if (nodeCount > 0) {
         emit('nodes:copied', nodeCount)
+        // ✅ 显示操作提示
+        showToast(`Copied ${nodeCount} node${nodeCount > 1 ? 's' : ''}`, 'success')
       }
     }
     return false
   })
 
-  // 粘贴
+  // 粘贴（✅ 优化：智能偏移防重叠）
   graph.bindKey(['ctrl+v', 'meta+v'], () => {
     if (!graph!.isClipboardEmpty()) {
-      // 智能偏移量：每次粘贴递增
+      // ✅ 智能偏移算法：检测重叠并自动调整
       pasteCount.value++
-      const offset = 30 + (pasteCount.value - 1) * 20
+      let offset = 30 + (pasteCount.value - 1) * 20
+
+      // 获取所有现有节点的位置
+      const existingNodes = graph!.getNodes()
+      const existingPositions = existingNodes.map(node => {
+        const pos = node.getPosition()
+        return { x: pos.x, y: pos.y }
+      })
+
+      // 如果检测到可能重叠，增加偏移量
+      const hasOverlap = existingPositions.some(pos => {
+        return existingPositions.filter(p =>
+          Math.abs(p.x - pos.x) < 50 && Math.abs(p.y - pos.y) < 50
+        ).length > 1
+      })
+
+      if (hasOverlap && pasteCount.value > 1) {
+        offset = 40 + (pasteCount.value - 1) * 30  // 增加偏移量
+      }
 
       const cells = graph!.paste({ offset })
       graph!.cleanSelection()
@@ -644,6 +724,8 @@ const bindEvents = () => {
       const nodeCount = cells.filter(cell => cell.isNode()).length
       if (nodeCount > 0) {
         emit('nodes:pasted', nodeCount)
+        // ✅ 显示操作提示
+        showToast(`Pasted ${nodeCount} node${nodeCount > 1 ? 's' : ''}`, 'success')
       }
 
       // 为粘贴的节点更新数据和发送事件
@@ -657,11 +739,26 @@ const bindEvents = () => {
     return false
   })
 
-  // 删除
+  // 删除（✅ 优化：添加操作提示）
   graph.bindKey(['delete', 'backspace'], () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
+      const nodeCount = cells.filter(cell => cell.isNode()).length
+      const edgeCount = cells.filter(cell => cell.isEdge()).length
       graph!.removeCells(cells)
+
+      // ✅ 显示操作提示
+      let message = ''
+      if (nodeCount > 0 && edgeCount > 0) {
+        message = `Deleted ${nodeCount} node${nodeCount > 1 ? 's' : ''} and ${edgeCount} edge${edgeCount > 1 ? 's' : ''}`
+      } else if (nodeCount > 0) {
+        message = `Deleted ${nodeCount} node${nodeCount > 1 ? 's' : ''}`
+      } else if (edgeCount > 0) {
+        message = `Deleted ${edgeCount} edge${edgeCount > 1 ? 's' : ''}`
+      }
+      if (message) {
+        showToast(message, 'info')
+      }
     }
     return false
   })
@@ -829,10 +926,9 @@ const addEdge = (edgeData: Edge): X6Edge | null => {
     target: { cell: edgeData.target, port: edgeData.targetPort || 'port-in' },
     data: edgeData,
     router: {
-      name: 'manhattan',
+      name: 'orth',  // ✅ 统一使用正交路由，与 connecting 配置一致
       args: {
-        padding: 10,
-        step: 10
+        padding: 10
       }
     },
     connector: {
@@ -843,14 +939,13 @@ const addEdge = (edgeData: Edge): X6Edge | null => {
     },
     attrs: {
       line: {
-        stroke: '#98A2B3',
+        stroke: '#5F6368',
         strokeWidth: 2,
         strokeLinecap: 'round',
         targetMarker: {
-          name: 'block',
-          width: 8,
-          height: 6,
-          fill: '#98A2B3'
+          name: 'circle',  // ✅ 统一使用圆形箭头
+          r: 4,
+          fill: '#5F6368'
         }
       }
     },
@@ -1069,17 +1164,22 @@ const refreshGraph = () => {
   }
 }
 
-// 设置导航模式
+// 设置导航模式（已优化：两种模式可同时启用，用修饰键区分）
 const setNavigationMode = (mode: 'panning' | 'select') => {
   if (!graph) return
 
+  // ✅ 优化：同时启用平移和框选，用不同修饰键区分
+  // - 平移：Space/Ctrl/Meta + 拖拽
+  // - 框选：Shift + 拖拽
+  // 这样用户可以灵活切换，不会互相冲突
+
   if (mode === 'panning') {
-    // 平移模式：启用平移，禁用框选
-    graph.disableRubberband()
+    // 平移模式为主：强调平移，框选仍然可用
     graph.enablePanning()
+    graph.enableRubberband()  // ✅ 保持框选可用
   } else {
-    // 选择模式：禁用平移，启用框选
-    graph.disablePanning()
+    // 选择模式为主：强调框选，平移仍然可用
+    graph.enablePanning()     // ✅ 保持平移可用
     graph.enableRubberband()
   }
 }
@@ -1297,6 +1397,61 @@ const clearHighlight = () => {
   })
 }
 
+// ✅ 新增：切换网格显示
+const toggleGrid = (visible: boolean) => {
+  if (!graph) return
+  graph.drawGrid({ type: 'dot', args: { color: '#D0D5DD', thickness: 1 } })
+  if (visible) {
+    graph.showGrid()
+  } else {
+    graph.hideGrid()
+  }
+}
+
+// ✅ 新增：工具栏操作方法
+const handleZoomIn = () => {
+  if (!graph) return
+  graph.zoom(0.1)
+}
+
+const handleZoomOut = () => {
+  if (!graph) return
+  graph.zoom(-0.1)
+}
+
+const handleZoomToFit = () => {
+  if (!graph) return
+  graph.zoomToFit({ padding: 20, maxScale: 1 })
+}
+
+const handleZoomToActual = () => {
+  if (!graph) return
+  graph.zoomTo(1)
+  graph.centerContent()
+}
+
+const handleCenter = () => {
+  if (!graph) return
+  graph.centerContent()
+}
+
+// ✅ 新增：Toast 提示函数
+const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'error' = 'info') => {
+  toastMessage.value = message
+  toastType.value = type
+  toastVisible.value = true
+
+  // 清除之前的定时器
+  if (toastTimer) {
+    clearTimeout(toastTimer)
+  }
+
+  // 2秒后自动隐藏
+  toastTimer = window.setTimeout(() => {
+    toastVisible.value = false
+  }, 2000)
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -1313,7 +1468,8 @@ defineExpose({
   alignNodes,
   distributeNodes,
   highlightRelatedNodes,
-  clearHighlight
+  clearHighlight,
+  toggleGrid  // ✅ 新增：网格切换方法
 })
 </script>
 
@@ -1407,12 +1563,92 @@ defineExpose({
     stroke-width: 1.5;
   }
 
-  // 选中计数指示器
-  .selection-indicator {
+  // ✅ 新增：Toast 提示样式
+  .canvas-toast {
     position: absolute;
-    top: 16px;
+    top: 70px;
     left: 50%;
     transform: translateX(-50%);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: #FFFFFF;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15),
+                0 0 0 1px rgba(0, 0, 0, 0.05);
+    z-index: 1100;
+    pointer-events: none;
+    font-size: 14px;
+    min-width: 200px;
+
+    .toast-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      font-size: 14px;
+      font-weight: 600;
+      flex-shrink: 0;
+    }
+
+    .toast-message {
+      color: #344054;
+      font-weight: 500;
+    }
+
+    &.toast-success {
+      .toast-icon {
+        background: #D1FAE5;
+        color: #10B981;
+      }
+    }
+
+    &.toast-info {
+      .toast-icon {
+        background: #DBEAFE;
+        color: #3B82F6;
+      }
+    }
+
+    &.toast-warning {
+      .toast-icon {
+        background: #FEF3C7;
+        color: #F59E0B;
+      }
+    }
+
+    &.toast-error {
+      .toast-icon {
+        background: #FEE2E2;
+        color: #EF4444;
+      }
+    }
+  }
+
+  // Toast 动画
+  .toast-enter-active,
+  .toast-leave-active {
+    transition: all 0.3s ease;
+  }
+
+  .toast-enter-from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  .toast-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  // ✅ 优化：选中计数指示器（改到底部左侧，避免遮挡节点）
+  .selection-indicator {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -1422,9 +1658,9 @@ defineExpose({
     border-radius: 20px;
     box-shadow: 0 4px 12px rgba(45, 110, 237, 0.2),
                 0 0 0 3px rgba(45, 110, 237, 0.08);
-    z-index: 1000;
+    z-index: 100;
     pointer-events: none;
-    animation: slide-down 0.3s ease-out;
+    animation: slide-up 0.3s ease-out;
 
     .selection-count {
       display: inline-flex;
@@ -1463,15 +1699,15 @@ defineExpose({
     transform: translateX(-50%) translateY(-10px);
   }
 
-  // 下滑动画
-  @keyframes slide-down {
+  // ✅ 优化：改为上滑动画（底部出现）
+  @keyframes slide-up {
     from {
       opacity: 0;
-      transform: translateX(-50%) translateY(-20px);
+      transform: translateY(20px);
     }
     to {
       opacity: 1;
-      transform: translateX(-50%) translateY(0);
+      transform: translateY(0);
     }
   }
 
@@ -1513,6 +1749,89 @@ defineExpose({
       fill: rgba(45, 110, 237, 0.05);
       rx: 6;
       ry: 6;
+    }
+  }
+
+  // ✅ 新增：导航工具栏样式
+  .canvas-toolbar {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px;
+    background: #FFFFFF;
+    border: 1px solid #D0D5DD;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08),
+                0 0 0 1px rgba(0, 0, 0, 0.04);
+    z-index: 100;
+    transition: all 0.2s ease;
+
+    &:hover {
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12),
+                  0 0 0 1px rgba(0, 0, 0, 0.06);
+    }
+
+    .zoom-display {
+      min-width: 48px;
+      padding: 0 8px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #344054;
+      text-align: center;
+      user-select: none;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 20px;
+      background: #E4E7EC;
+      margin: 0 4px;
+    }
+
+    .toolbar-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      border: none;
+      background: transparent;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      color: #475467;
+      font-size: 16px;
+      font-weight: 500;
+      user-select: none;
+
+      .icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 16px;
+        line-height: 1;
+      }
+
+      &:hover {
+        background: #F2F4F7;
+        color: #344054;
+      }
+
+      &:active {
+        background: #E4E7EC;
+        transform: scale(0.95);
+      }
+
+      &:disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        &:hover {
+          background: transparent;
+        }
+      }
     }
   }
 }
