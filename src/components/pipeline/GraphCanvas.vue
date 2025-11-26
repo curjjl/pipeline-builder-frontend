@@ -8,6 +8,50 @@
       </div>
     </transition>
 
+    <!-- ✅ 新增：多选操作浮动工具栏 -->
+    <transition name="slide-down">
+      <div v-if="selectedCount > 1" class="multi-select-toolbar">
+        <div class="toolbar-group">
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('left')" title="左对齐">
+            <span class="icon">⫴</span>
+          </button>
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('center-v')" title="垂直居中">
+            <span class="icon">⊞</span>
+          </button>
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('right')" title="右对齐">
+            <span class="icon">⫵</span>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('top')" title="顶对齐">
+            <span class="icon">⫶</span>
+          </button>
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('center-h')" title="水平居中">
+            <span class="icon">⊟</span>
+          </button>
+          <button class="toolbar-action-btn" @click="handleToolbarAlign('bottom')" title="底对齐">
+            <span class="icon">⫷</span>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group" v-if="selectedCount > 2">
+          <button class="toolbar-action-btn" @click="handleToolbarDistribute('horizontal')" title="水平分布">
+            <span class="icon">⇿</span>
+          </button>
+          <button class="toolbar-action-btn" @click="handleToolbarDistribute('vertical')" title="垂直分布">
+            <span class="icon">⇵</span>
+          </button>
+        </div>
+        <div class="toolbar-divider"></div>
+        <div class="toolbar-group">
+          <button class="toolbar-action-btn danger" @click="handleToolbarDelete" title="删除选中节点">
+            <span class="icon">×</span>
+          </button>
+        </div>
+      </div>
+    </transition>
+
     <!-- ✅ 新增：Toast 提示 -->
     <transition name="toast">
       <div v-if="toastVisible" :class="['canvas-toast', `toast-${toastType}`]">
@@ -121,7 +165,7 @@ const initGraph = () => {
     },
     grid: {
       visible: props.showGrid,  // ✅ 优化：支持可选网格显示
-      size: 10,                 // 网格大小
+      size: 20,                 // ✅ 优化：网格大小改为20px（更适合吸附）
       type: 'dot',              // 网格类型：dot（点）或 mesh（网格线）
       args: {
         color: '#D0D5DD',       // 网格颜色
@@ -138,6 +182,13 @@ const initGraph = () => {
       modifiers: ['ctrl', 'meta'],
       minScale: 0.2,
       maxScale: 2
+    },
+    // ✅ 新增：网格吸附配置
+    snapline: {
+      enabled: true,
+      sharp: true,
+      clean: true,  // 吸附后清除辅助线
+      tolerance: 10  // 吸附容差（像素）
     },
     connecting: {
       router: {
@@ -214,23 +265,33 @@ const initGraph = () => {
           return false
         }
 
-        // Prevent circular dependencies (basic check)
+        // ✅ 优化：防止循环依赖（高效实现 O(V+E)）
         const wouldCreateCycle = (source: string, target: string): boolean => {
-          const downstreamNodes = new Set<string>([target])
-          const toCheck = [target]
+          // 构建邻接表以提高查找效率（O(E) 而非每个节点 O(E)）
+          const adjMap = new Map<string, string[]>()
+          edges.forEach(edge => {
+            const sourceId = edge.getSourceCellId()
+            if (!adjMap.has(sourceId)) {
+              adjMap.set(sourceId, [])
+            }
+            adjMap.get(sourceId)!.push(edge.getTargetCellId())
+          })
 
-          while (toCheck.length > 0) {
-            const current = toCheck.pop()!
-            const outgoingEdges = edges.filter(e => e.getSourceCellId() === current)
+          // BFS 检查 target 是否能到达 source
+          const visited = new Set<string>([target])
+          const queue = [target]
 
-            for (const edge of outgoingEdges) {
-              const downstream = edge.getTargetCellId()
-              if (downstream === source) {
-                return true // Cycle detected
+          while (queue.length > 0) {
+            const current = queue.shift()!
+            const neighbors = adjMap.get(current) || []
+
+            for (const neighbor of neighbors) {
+              if (neighbor === source) {
+                return true // 检测到循环
               }
-              if (!downstreamNodes.has(downstream)) {
-                downstreamNodes.add(downstream)
-                toCheck.push(downstream)
+              if (!visited.has(neighbor)) {
+                visited.add(neighbor)
+                queue.push(neighbor)
               }
             }
           }
@@ -267,6 +328,8 @@ const initGraph = () => {
       new Snapline({
         enabled: true,
         sharp: true,
+        clean: true,  // ✅ 新增：吸附后自动清除辅助线
+        tolerance: 10,  // ✅ 新增：吸附容差
         className: 'snapline'
       })
     )
@@ -525,6 +588,15 @@ const bindEvents = () => {
   // 选择变化事件 - 更新选中计数
   graph.on('selection:changed', ({ selected }) => {
     selectedCount.value = selected.length
+  })
+
+  // ✅ 新增：历史记录变化事件 - Toast 提示
+  graph.on('history:undo', () => {
+    showToast('Undo', 'info')
+  })
+
+  graph.on('history:redo', () => {
+    showToast('Redo', 'info')
   })
 
   // 端口悬停高亮效果
@@ -860,6 +932,48 @@ const bindEvents = () => {
     }
     return false
   })
+
+  // ✅ 新增：方向键移动节点（微调）
+  graph.bindKey('up', () => {
+    moveSelectedNodes(0, -10)
+    return false
+  })
+
+  graph.bindKey('down', () => {
+    moveSelectedNodes(0, 10)
+    return false
+  })
+
+  graph.bindKey('left', () => {
+    moveSelectedNodes(-10, 0)
+    return false
+  })
+
+  graph.bindKey('right', () => {
+    moveSelectedNodes(10, 0)
+    return false
+  })
+
+  // ✅ 新增：Shift + 方向键移动节点（大幅移动）
+  graph.bindKey('shift+up', () => {
+    moveSelectedNodes(0, -50)
+    return false
+  })
+
+  graph.bindKey('shift+down', () => {
+    moveSelectedNodes(0, 50)
+    return false
+  })
+
+  graph.bindKey('shift+left', () => {
+    moveSelectedNodes(-50, 0)
+    return false
+  })
+
+  graph.bindKey('shift+right', () => {
+    moveSelectedNodes(50, 0)
+    return false
+  })
 }
 
 // 添加节点
@@ -953,6 +1067,33 @@ const addEdge = (edgeData: Edge): X6Edge | null => {
   })
 
   return edge
+}
+
+// ✅ 新增：移动选中的节点
+const moveSelectedNodes = (dx: number, dy: number) => {
+  if (!graph) return
+
+  const selectedNodes = graph.getSelectedCells().filter(cell => cell.isNode())
+  if (selectedNodes.length === 0) return
+
+  selectedNodes.forEach(node => {
+    const position = node.getPosition()
+    node.setPosition(position.x + dx, position.y + dy)
+  })
+
+  // 触发移动事件
+  selectedNodes.forEach(node => {
+    const nodeData = node.getData() as Node
+    const position = node.getPosition()
+    emit('node:moved', { node: nodeData, position })
+  })
+
+  // Toast 提示
+  if (selectedNodes.length > 0) {
+    const direction = dx < 0 ? 'left' : dx > 0 ? 'right' : dy < 0 ? 'up' : 'down'
+    const distance = Math.abs(dx || dy)
+    showToast(`Moved ${selectedNodes.length} node${selectedNodes.length > 1 ? 's' : ''} ${direction} by ${distance}px`, 'info')
+  }
 }
 
 // 缩放控制
@@ -1452,6 +1593,37 @@ const showToast = (message: string, type: 'success' | 'info' | 'warning' | 'erro
   }, 2000)
 }
 
+// ✅ 新增：多选工具栏 - 对齐操作
+const handleToolbarAlign = (direction: 'left' | 'right' | 'top' | 'bottom' | 'center-h' | 'center-v') => {
+  alignNodes(direction)
+  const labels: Record<string, string> = {
+    'left': 'left',
+    'right': 'right',
+    'top': 'top',
+    'bottom': 'bottom',
+    'center-h': 'horizontally',
+    'center-v': 'vertically'
+  }
+  showToast(`Aligned ${selectedCount.value} nodes ${labels[direction]}`, 'success')
+}
+
+// ✅ 新增：多选工具栏 - 分布操作
+const handleToolbarDistribute = (direction: 'horizontal' | 'vertical') => {
+  distributeNodes(direction)
+  showToast(`Distributed ${selectedCount.value} nodes ${direction}ly`, 'success')
+}
+
+// ✅ 新增：多选工具栏 - 删除操作
+const handleToolbarDelete = () => {
+  if (!graph) return
+  const cells = graph.getSelectedCells()
+  if (cells.length > 0) {
+    const nodeCount = cells.filter(cell => cell.isNode()).length
+    graph.removeCells(cells)
+    showToast(`Deleted ${nodeCount} node${nodeCount > 1 ? 's' : ''}`, 'info')
+  }
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -1683,6 +1855,71 @@ defineExpose({
     }
   }
 
+  // ✅ 新增：多选操作浮动工具栏样式
+  .multi-select-toolbar {
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: white;
+    padding: 8px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 1001;
+    border: 1px solid #E5E7EB;
+
+    .toolbar-group {
+      display: flex;
+      gap: 2px;
+    }
+
+    .toolbar-divider {
+      width: 1px;
+      height: 24px;
+      background: #E5E7EB;
+      margin: 0 4px;
+    }
+
+    .toolbar-action-btn {
+      width: 32px;
+      height: 32px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      background: transparent;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #4B5563;
+
+      .icon {
+        font-size: 18px;
+        line-height: 1;
+      }
+
+      &:hover {
+        background: #F3F4F6;
+        color: #2D6EED;
+      }
+
+      &:active {
+        background: #E5E7EB;
+        transform: scale(0.95);
+      }
+
+      &.danger {
+        &:hover {
+          background: #FEE2E2;
+          color: #DC2626;
+        }
+      }
+    }
+  }
+
   // 淡入淡出动画
   .fade-enter-active,
   .fade-leave-active {
@@ -1695,6 +1932,22 @@ defineExpose({
   }
 
   .fade-leave-to {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  // ✅ 新增：slide-down动画（用于多选工具栏）
+  .slide-down-enter-active,
+  .slide-down-leave-active {
+    transition: all 0.3s ease;
+  }
+
+  .slide-down-enter-from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-10px);
+  }
+
+  .slide-down-leave-to {
     opacity: 0;
     transform: translateX(-50%) translateY(-10px);
   }
