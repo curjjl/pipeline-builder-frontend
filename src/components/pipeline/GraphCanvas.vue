@@ -1,5 +1,6 @@
 <template>
-  <div ref="containerRef" class="graph-canvas">
+  <!-- ✅ 修复：添加 tabindex 使容器可聚焦，支持键盘快捷键 -->
+  <div ref="containerRef" class="graph-canvas" tabindex="0" @click="handleContainerClick">
     <!-- 选中节点计数指示器 -->
     <transition name="fade">
       <div v-if="selectedCount > 0" class="selection-indicator">
@@ -168,8 +169,8 @@ const initGraph = () => {
       size: 20,                 // ✅ 优化：网格大小改为20px（更适合吸附）
       type: 'dot',              // 网格类型：dot（点）或 mesh（网格线）
       args: {
-        color: '#D0D5DD',       // 网格颜色
-        thickness: 1            // 网格线粗细
+        color: '#a0a0a0',       // 网格颜色（更明显的灰色）
+        thickness: 2            // 网格点大小（2像素）
       }
     },
     panning: {
@@ -366,7 +367,8 @@ const initGraph = () => {
     )
     .use(
       new Keyboard({
-        enabled: true
+        enabled: true,
+        global: true  // ✅ 修复：启用全局快捷键，解决焦点问题
       })
     )
     .use(
@@ -1180,6 +1182,9 @@ watch(
   (newNodes, oldNodes) => {
     if (!graph) return
 
+    // ✅ 如果正在自动布局，跳过重绘（防止布局混乱）
+    if (isAutoLayouting) return
+
     // 简单的同步策略：清空后重新添加
     // 实际应用中可以做更精细的diff
     graph.clearCells()
@@ -1206,6 +1211,9 @@ onUnmounted(() => {
   }
 })
 
+// ✅ 标记：是否正在执行自动布局（防止 watch 触发重绘）
+let isAutoLayouting = false
+
 // Auto layout - 自动排列节点
 const autoLayout = () => {
   if (!graph) return
@@ -1214,6 +1222,9 @@ const autoLayout = () => {
   const edges = graph.getEdges()
 
   if (nodes.length === 0) return
+
+  // ✅ 设置标记，防止 watch 触发重绘
+  isAutoLayouting = true
 
   // Build adjacency list for topological sort
   const inDegree = new Map<string, number>()
@@ -1265,6 +1276,9 @@ const autoLayout = () => {
   const startX = 100
   const startY = 100
 
+  // ✅ 收集所有位置更新，最后批量发送事件
+  const positionUpdates: Array<{ node: any; position: { x: number; y: number } }> = []
+
   // Position nodes by layer
   layers.forEach((layer, layerIndex) => {
     const x = startX + layerIndex * horizontalSpacing
@@ -1273,19 +1287,33 @@ const autoLayout = () => {
       if (node) {
         const totalHeight = (layer.length - 1) * verticalSpacing
         const y = startY + nodeIndex * verticalSpacing - totalHeight / 2
-        node.setPosition({ x, y }, { ui: false })
 
-        // Emit moved event for state sync
+        // ✅ 使用 silent 选项，不触发事件
+        node.setPosition({ x, y }, { silent: true })
+
+        // 收集位置更新
         const nodeData = node.getData()
-        emit('node:moved', { node: nodeData, position: { x, y } })
+        if (nodeData) {
+          positionUpdates.push({ node: nodeData, position: { x, y } })
+        }
       }
     })
   })
 
   // Center the layout
   setTimeout(() => {
-    graph.centerContent()
-    graph.zoomToFit({ padding: 50, maxScale: 1 })
+    if (graph) {
+      graph.centerContent()
+      graph.zoomToFit({ padding: 50, maxScale: 1 })
+    }
+
+    // ✅ 布局完成后，批量发送事件更新状态
+    positionUpdates.forEach(update => {
+      emit('node:moved', update)
+    })
+
+    // ✅ 重置标记
+    isAutoLayouting = false
   }, 100)
 }
 
@@ -1541,8 +1569,17 @@ const clearHighlight = () => {
 // ✅ 新增：切换网格显示
 const toggleGrid = (visible: boolean) => {
   if (!graph) return
-  graph.drawGrid({ type: 'dot', args: { color: '#D0D5DD', thickness: 1 } })
+
   if (visible) {
+    // 重新绘制网格并显示 - 使用更明显的网格点
+    graph.drawGrid({
+      type: 'dot',
+      size: 20,
+      args: {
+        color: '#a0a0a0',   // 更深的颜色使网格点更明显
+        thickness: 2        // 增大点的大小（2像素）
+      }
+    })
     graph.showGrid()
   } else {
     graph.hideGrid()
@@ -1624,6 +1661,12 @@ const handleToolbarDelete = () => {
   }
 }
 
+// ✅ 修复：点击容器时确保焦点，使键盘快捷键生效
+const handleContainerClick = () => {
+  // 确保容器获得焦点
+  containerRef.value?.focus()
+}
+
 // 暴露方法
 defineExpose({
   zoom,
@@ -1650,6 +1693,11 @@ defineExpose({
   width: 100%;
   height: 100%;
   position: relative;
+
+  // ✅ 修复：移除焦点时的轮廓线
+  &:focus {
+    outline: none;
+  }
 
   :deep(.x6-graph) {
     box-shadow: none !important;

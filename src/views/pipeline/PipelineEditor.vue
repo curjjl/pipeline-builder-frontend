@@ -967,6 +967,14 @@ watch(currentTool, (newVal) => {
     canvasRef.value.setNavigationMode(newVal === 'move' ? 'panning' : 'select')
   }
 })
+
+// ✅ 修复：监听网格显示开关变化
+watch(showGrid, (newVal) => {
+  if (canvasRef.value) {
+    canvasRef.value.toggleGrid(newVal)
+  }
+})
+
 const snapToGrid = ref(true)
 const autoLayout = ref(false)
 
