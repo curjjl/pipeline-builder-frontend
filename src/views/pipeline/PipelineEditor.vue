@@ -228,6 +228,7 @@
           @node:contextmenu="handleNodeContextMenu"
           @node:moved="handleNodeMoved"
           @edge:added="handleEdgeAdded"
+          @edge:removed="handleEdgeRemoved"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
           @canvas:contextmenu="handleCanvasContextMenu"
@@ -1507,6 +1508,14 @@ function handleEdgeAdded(edge: Edge) {
   message.success('Nodes connected')
 }
 
+// Edge removed (from canvas button-remove tool)
+function handleEdgeRemoved(edge: Edge) {
+  // 从store中删除边数据
+  const command = new DeleteEdgeCommand(edge, pipelineStore)
+  historyStore.executeCommand(command)
+  message.success('Connection deleted')
+}
+
 // Edge context menu
 function handleEdgeContextMenu({ edge, event }: { edge: Edge; event: MouseEvent }) {
   // 阻止默认右键菜单
@@ -1770,6 +1779,14 @@ function handleContextMenuSelect(key: string) {
         if (edge) {
           const command = new DeleteEdgeCommand(edge, pipelineStore)
           historyStore.executeCommand(command)
+          // 同步删除X6图形视图中的边
+          const graph = canvasRef.value?.getGraph()
+          if (graph) {
+            const cell = graph.getCellById(target.id)
+            if (cell) {
+              graph.removeCell(cell)
+            }
+          }
           message.success('Connection deleted')
         }
       } else {
@@ -2201,6 +2218,9 @@ function handleClearSelection() {
 
   graph.cleanSelection()
   pipelineStore.setSelectedNodes([])
+  // 隐藏Transform/Join/Union菜单
+  cleanMenuVisible.value = false
+  cleanMenuTargetNode.value = null
   message.success('Selection cleared')
 }
 

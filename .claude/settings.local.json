@@ -33,7 +33,10 @@
       "Bash(cat:*)",
       "Bash(timeout 2 bash:*)",
       "Bash(npm install:*)",
-      "Bash(mkdir:*)"
+      "Bash(mkdir:*)",
+      "WebFetch(domain:x6.antv.vision)",
+      "WebFetch(domain:github.com)",
+      "mcp__chrome-devtools__hover"
     ],
     "deny": [],
     "ask": []

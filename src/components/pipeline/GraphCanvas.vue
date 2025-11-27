@@ -657,7 +657,31 @@ const bindEvents = () => {
           name: 'button-remove', // 删除按钮
           args: {
             distance: '50%',
-            offset: { x: 0, y: -15 },
+            offset: { x: 0, y: 0 },  // ✅ 修复：将按钮放在边上，避免鼠标移动时触发mouseleave
+            markup: [
+              {
+                tagName: 'circle',
+                selector: 'button',
+                attrs: {
+                  r: 10,
+                  fill: '#FFFFFF',
+                  stroke: '#EA4335',
+                  'stroke-width': 2,
+                  cursor: 'pointer'
+                }
+              },
+              {
+                tagName: 'path',
+                selector: 'icon',
+                attrs: {
+                  d: 'M -4 -4 L 4 4 M -4 4 L 4 -4',
+                  fill: 'none',
+                  stroke: '#EA4335',
+                  'stroke-width': 2,
+                  'pointer-events': 'none'
+                }
+              }
+            ],
             onClick({ view }: any) {
               // ✅ 优化：先触发事件通知父组件，让父组件处理数据同步后再删除视图
               const edgeData = edge.getData() as Edge
@@ -675,16 +699,38 @@ const bindEvents = () => {
     }
   })
 
-  graph.on('edge:mouseleave', ({ edge }) => {
+  graph.on('edge:mouseleave', ({ edge, e }) => {
     // 检查边是否被选中
     const selectedCells = graph!.getSelectedCells()
     const isSelected = selectedCells.some(cell => cell.id === edge.id)
 
     if (!isSelected) {
-      edge.attr('line/stroke', '#5F6368')
-      edge.attr('line/strokeWidth', 2)
-      edge.attr('line/targetMarker/fill', '#5F6368')
-      edge.removeTools()
+      // ✅ 修复：延迟移除工具，防止鼠标移动到工具按钮时工具被移除
+      // 检查鼠标是否移动到了工具元素上
+      const relatedTarget = e?.relatedTarget as Element | null
+      const isMovingToTool = relatedTarget?.closest('.x6-edge-tool') ||
+                             relatedTarget?.closest('.x6-cell-tool')
+
+      if (isMovingToTool) {
+        // 鼠标移动到工具上，不移除工具
+        return
+      }
+
+      // 使用延迟移除，给用户更多时间点击工具按钮
+      setTimeout(() => {
+        // 再次检查边是否仍然没有被hover
+        const edgeElement = document.querySelector(`[data-cell-id="${edge.id}"]`)
+        const isHovered = edgeElement?.matches(':hover') ||
+                         edgeElement?.querySelector(':hover')
+        const toolElement = document.querySelector(`.x6-edge-tool:hover, .x6-cell-tool:hover`)
+
+        if (!isHovered && !toolElement) {
+          edge.attr('line/stroke', '#5F6368')
+          edge.attr('line/strokeWidth', 2)
+          edge.attr('line/targetMarker/fill', '#5F6368')
+          edge.removeTools()
+        }
+      }, 100)
     }
   })
 
@@ -865,6 +911,8 @@ const bindEvents = () => {
   // 取消选择
   graph.bindKey(['escape', 'esc'], () => {
     graph!.cleanSelection()
+    // 通知父组件选择已清除，让其隐藏相关菜单
+    emit('canvas:click')
     return false
   })
 
@@ -2032,6 +2080,7 @@ defineExpose({
   // 工具按钮样式
   :deep(.x6-edge-tool) {
     cursor: pointer;
+    pointer-events: all !important;  // ✅ 确保工具按钮可以接收鼠标事件
 
     .x6-edge-tool-remove {
       fill: #FFFFFF;
@@ -2041,6 +2090,34 @@ defineExpose({
         fill: #EA4335;
       }
     }
+
+    // ✅ button-remove 工具的样式
+    g {
+      cursor: pointer;
+      pointer-events: all !important;
+
+      circle {
+        transition: all 0.2s ease;
+        pointer-events: all !important;
+
+        &:hover {
+          fill: #FEE2E2;
+          stroke: #DC2626;
+          transform: scale(1.1);
+        }
+      }
+
+      path {
+        pointer-events: none;  // 图标不需要事件，让circle处理
+      }
+    }
+  }
+
+  // ✅ 确保工具容器可以接收事件
+  :deep(.x6-cell-tool),
+  :deep(.x6-edge-tool-wrap),
+  :deep(.x6-cell-tool-wrap) {
+    pointer-events: all !important;
   }
 
   :deep(.x6-node-tool) {
