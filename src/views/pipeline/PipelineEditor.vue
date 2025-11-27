@@ -1292,15 +1292,20 @@ function showCleanActionsMenu(node: Node) {
 
   // Get node position and size
   const bbox = cell.getBBox()
-  const zoom = graph.zoom()
 
-  // Calculate menu position (to the right of node)
-  const canvasContainer = graph.container
-  const containerRect = canvasContainer.getBoundingClientRect()
+  // ✅ 修复：使用 localToPage 方法正确转换坐标
+  // 这个方法会考虑画布的缩放和平移偏移
+  const nodeRightCenter = {
+    x: bbox.x + bbox.width + 20,  // 节点右边界 + 20px 间距
+    y: bbox.y + bbox.height / 2   // 节点垂直中心
+  }
+
+  // 将画布坐标转换为页面坐标
+  const pagePoint = graph.localToPage(nodeRightCenter)
 
   // Position menu to the right of the node
-  cleanMenuX.value = containerRect.left + (bbox.x + bbox.width + 20) * zoom
-  cleanMenuY.value = containerRect.top + (bbox.y + bbox.height / 2 - 60) * zoom
+  cleanMenuX.value = pagePoint.x
+  cleanMenuY.value = pagePoint.y - 60  // 向上偏移 60px，使菜单垂直居中
 
   cleanMenuTargetNode.value = node
   cleanMenuVisible.value = true

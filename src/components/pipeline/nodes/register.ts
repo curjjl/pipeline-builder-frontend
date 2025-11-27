@@ -26,12 +26,32 @@ export function registerDatasetNode() {
           selector: 'icon'
         },
         {
-          tagName: 'text',
-          selector: 'label'
+          tagName: 'g',
+          selector: 'labelGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'label'
+            },
+            {
+              tagName: 'title',
+              selector: 'labelTitle'
+            }
+          ]
         },
         {
-          tagName: 'text',
-          selector: 'meta'
+          tagName: 'g',
+          selector: 'metaGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'meta'
+            },
+            {
+              tagName: 'title',
+              selector: 'metaTitle'
+            }
+          ]
         },
         {
           tagName: 'circle',
@@ -81,7 +101,15 @@ export function registerDatasetNode() {
           fontSize: 14,
           fontWeight: 600,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 20,
+            ellipsis: true
+          }
+        },
+        labelTitle: {
+          text: 'Dataset'
         },
         meta: {
           text: '0 columns',
@@ -90,7 +118,15 @@ export function registerDatasetNode() {
           fill: '#667085',
           fontSize: 12,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 16,
+            ellipsis: true
+          }
+        },
+        metaTitle: {
+          text: '0 columns'
         },
         'action-btn': {
           refCx: 220,
@@ -151,12 +187,32 @@ export function registerTransformNode() {
           selector: 'icon'
         },
         {
-          tagName: 'text',
-          selector: 'label'
+          tagName: 'g',
+          selector: 'labelGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'label'
+            },
+            {
+              tagName: 'title',
+              selector: 'labelTitle'
+            }
+          ]
         },
         {
-          tagName: 'text',
-          selector: 'meta'
+          tagName: 'g',
+          selector: 'metaGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'meta'
+            },
+            {
+              tagName: 'title',
+              selector: 'metaTitle'
+            }
+          ]
         }
       ],
       attrs: {
@@ -202,7 +258,15 @@ export function registerTransformNode() {
           fontSize: 14,
           fontWeight: 600,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 20,
+            ellipsis: true
+          }
+        },
+        labelTitle: {
+          text: 'Transform'
         },
         meta: {
           text: 'Not configured',
@@ -211,7 +275,15 @@ export function registerTransformNode() {
           fill: '#667085',
           fontSize: 12,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 16,
+            ellipsis: true
+          }
+        },
+        metaTitle: {
+          text: 'Not configured'
         }
       },
       ports: {
@@ -277,12 +349,32 @@ export function registerJoinNode() {
           selector: 'icon'
         },
         {
-          tagName: 'text',
-          selector: 'label'
+          tagName: 'g',
+          selector: 'labelGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'label'
+            },
+            {
+              tagName: 'title',
+              selector: 'labelTitle'
+            }
+          ]
         },
         {
-          tagName: 'text',
-          selector: 'meta'
+          tagName: 'g',
+          selector: 'metaGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'meta'
+            },
+            {
+              tagName: 'title',
+              selector: 'metaTitle'
+            }
+          ]
         }
       ],
       attrs: {
@@ -328,7 +420,15 @@ export function registerJoinNode() {
           fontSize: 14,
           fontWeight: 600,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 20,
+            ellipsis: true
+          }
+        },
+        labelTitle: {
+          text: 'Join'
         },
         meta: {
           text: 'Inner join',
@@ -337,7 +437,15 @@ export function registerJoinNode() {
           fill: '#667085',
           fontSize: 12,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 16,
+            ellipsis: true
+          }
+        },
+        metaTitle: {
+          text: 'Inner join'
         }
       },
       ports: {
@@ -404,12 +512,32 @@ export function registerOutputNode() {
           selector: 'icon'
         },
         {
-          tagName: 'text',
-          selector: 'label'
+          tagName: 'g',
+          selector: 'labelGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'label'
+            },
+            {
+              tagName: 'title',
+              selector: 'labelTitle'
+            }
+          ]
         },
         {
-          tagName: 'text',
-          selector: 'meta'
+          tagName: 'g',
+          selector: 'metaGroup',
+          children: [
+            {
+              tagName: 'text',
+              selector: 'meta'
+            },
+            {
+              tagName: 'title',
+              selector: 'metaTitle'
+            }
+          ]
         }
       ],
       attrs: {
@@ -455,7 +583,15 @@ export function registerOutputNode() {
           fontSize: 14,
           fontWeight: 600,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 20,
+            ellipsis: true
+          }
+        },
+        labelTitle: {
+          text: 'Output'
         },
         meta: {
           text: 'Save to dataset',
@@ -464,7 +600,15 @@ export function registerOutputNode() {
           fill: '#667085',
           fontSize: 12,
           'text-anchor': 'start',
-          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif'
+          fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+          textWrap: {
+            width: 170,
+            height: 16,
+            ellipsis: true
+          }
+        },
+        metaTitle: {
+          text: 'Save to dataset'
         }
       },
       ports: {

@@ -63,6 +63,18 @@
       </div>
     </transition>
 
+    <!-- ✅ 新增：节点文本悬停提示 -->
+    <transition name="tooltip">
+      <div
+        v-if="nodeTooltip.visible"
+        class="node-tooltip"
+        :style="{ left: nodeTooltip.x + 'px', top: nodeTooltip.y + 'px' }"
+      >
+        <div class="tooltip-title">{{ nodeTooltip.name }}</div>
+        <div class="tooltip-meta">{{ nodeTooltip.meta }}</div>
+      </div>
+    </transition>
+
     <!-- ✅ 新增：导航工具栏 -->
     <div class="canvas-toolbar">
       <!-- 缩放显示 -->
@@ -147,6 +159,17 @@ const toastMessage = ref('')  // ✅ 新增：Toast 消息
 const toastType = ref<'success' | 'info' | 'warning' | 'error'>('info')
 const toastVisible = ref(false)
 let toastTimer: number | null = null
+
+// ✅ 新增：节点悬停提示状态
+const nodeTooltip = ref({
+  visible: false,
+  x: 0,
+  y: 0,
+  name: '',
+  meta: ''
+})
+let tooltipTimer: number | null = null
+
 let graph: Graph | null = null
 
 // 初始化图编辑器
@@ -230,14 +253,31 @@ const initGraph = () => {
           zIndex: 1
         })
       },
-      validateConnection({ sourceCell, targetCell, sourceMagnet, targetMagnet }) {
+      validateConnection({ sourceCell, targetCell, sourceMagnet, targetMagnet, sourcePort, targetPort }) {
         // 不能连接到自己
         if (sourceCell === targetCell) {
           return false
         }
 
-        // 必须从输出端口连接到输入端口
+        // 必须有源端口和目标端口
         if (!sourceMagnet || !targetMagnet) {
+          return false
+        }
+
+        // ✅ 修复：验证端口方向 - 源必须是输出端口，目标必须是输入端口
+        // 检查源端口是否为输出端口（port-out 或 port-out-*）
+        const isSourceOutPort = sourcePort && (
+          sourcePort.startsWith('port-out') ||
+          sourcePort.includes('out')
+        )
+        // 检查目标端口是否为输入端口（port-in 或 port-in-*）
+        const isTargetInPort = targetPort && (
+          targetPort.startsWith('port-in') ||
+          targetPort.includes('in')
+        )
+
+        // 如果端口方向不对，拒绝连接
+        if (!isSourceOutPort || !isTargetInPort) {
           return false
         }
 
@@ -483,7 +523,7 @@ const bindEvents = () => {
   })
 
   // 节点悬停效果
-  graph.on('node:mouseenter', ({ node }) => {
+  graph.on('node:mouseenter', ({ node, e }) => {
     // 显示端口并放大
     const ports = node.getPorts()
     ports.forEach(port => {
@@ -509,6 +549,45 @@ const bindEvents = () => {
         }
       ])
     }
+
+    // ✅ 新增：显示节点文本悬停提示（延迟500ms显示，避免频繁闪烁）
+    const nodeData = node.getData() as Node
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer)
+    }
+    tooltipTimer = window.setTimeout(() => {
+      const bbox = node.getBBox()
+      // 获取画布容器相对于视口的位置
+      const containerRect = containerRef.value?.getBoundingClientRect()
+      if (!containerRect) return
+
+      // 将节点的画布坐标转换为相对于画布容器的坐标
+      const pagePoint = graph!.localToPage({ x: bbox.x + bbox.width / 2, y: bbox.y })
+
+      // 获取节点的 meta 文本
+      let metaText = ''
+      if (nodeData.type === 'dataset') {
+        const rowCount = nodeData.data?.rowCount || 0
+        const columnCount = nodeData.data?.columnCount || 0
+        metaText = rowCount > 0 ? `${rowCount.toLocaleString()} rows · ${columnCount} columns` : `${columnCount} columns`
+      } else if (nodeData.type === 'transform') {
+        const columnCount = nodeData.data?.columnCount || 0
+        metaText = columnCount > 0 ? `${columnCount} columns` : 'Not configured'
+      } else if (nodeData.type === 'join') {
+        metaText = nodeData.data?.joinConfig?.type ? `${nodeData.data.joinConfig.type} join` : 'Inner join'
+      } else if (nodeData.type === 'output') {
+        metaText = nodeData.data?.outputName || 'Save to dataset'
+      }
+
+      // 计算相对于画布容器的坐标
+      nodeTooltip.value = {
+        visible: true,
+        x: pagePoint.x - containerRect.left,
+        y: pagePoint.y - containerRect.top - 10,
+        name: nodeData.name,
+        meta: metaText
+      }
+    }, 500)
   })
 
   graph.on('node:mouseleave', ({ node }) => {
@@ -527,6 +606,13 @@ const bindEvents = () => {
       })
       node.removeTools()
     }
+
+    // ✅ 新增：隐藏节点文本悬停提示
+    if (tooltipTimer) {
+      clearTimeout(tooltipTimer)
+      tooltipTimer = null
+    }
+    nodeTooltip.value.visible = false
   })
 
   // 节点拖拽开始
@@ -639,11 +725,11 @@ const bindEvents = () => {
     edge.attr('line/strokeWidth', 3)
     edge.attr('line/targetMarker/fill', '#4285F4')
 
-    // 添加边工具按钮
+    // ✅ 优化：只添加顶点工具，删除按钮已移除（改用右键菜单或 Delete 键删除）
     if (!edge.hasTools()) {
       edge.addTools([
         {
-          name: 'vertices', // 顶点工具
+          name: 'vertices', // 顶点工具（用于调整连线路径）
           args: {
             attrs: {
               fill: '#FFFFFF',
@@ -652,85 +738,22 @@ const bindEvents = () => {
               r: 5
             }
           }
-        },
-        {
-          name: 'button-remove', // 删除按钮
-          args: {
-            distance: '50%',
-            offset: { x: 0, y: 0 },  // ✅ 修复：将按钮放在边上，避免鼠标移动时触发mouseleave
-            markup: [
-              {
-                tagName: 'circle',
-                selector: 'button',
-                attrs: {
-                  r: 10,
-                  fill: '#FFFFFF',
-                  stroke: '#EA4335',
-                  'stroke-width': 2,
-                  cursor: 'pointer'
-                }
-              },
-              {
-                tagName: 'path',
-                selector: 'icon',
-                attrs: {
-                  d: 'M -4 -4 L 4 4 M -4 4 L 4 -4',
-                  fill: 'none',
-                  stroke: '#EA4335',
-                  'stroke-width': 2,
-                  'pointer-events': 'none'
-                }
-              }
-            ],
-            onClick({ view }: any) {
-              // ✅ 优化：先触发事件通知父组件，让父组件处理数据同步后再删除视图
-              const edgeData = edge.getData() as Edge
-              emit('edge:removed', edgeData)
-              // 延迟删除，给父组件时间处理（避免数据不同步）
-              setTimeout(() => {
-                if (view.cell && !view.cell.removed) {
-                  view.cell.remove()
-                }
-              }, 10)
-            }
-          }
         }
       ])
     }
   })
 
-  graph.on('edge:mouseleave', ({ edge, e }) => {
+  graph.on('edge:mouseleave', ({ edge }) => {
     // 检查边是否被选中
     const selectedCells = graph!.getSelectedCells()
     const isSelected = selectedCells.some(cell => cell.id === edge.id)
 
+    // ✅ 简化：如果边未被选中，直接恢复样式并移除工具
     if (!isSelected) {
-      // ✅ 修复：延迟移除工具，防止鼠标移动到工具按钮时工具被移除
-      // 检查鼠标是否移动到了工具元素上
-      const relatedTarget = e?.relatedTarget as Element | null
-      const isMovingToTool = relatedTarget?.closest('.x6-edge-tool') ||
-                             relatedTarget?.closest('.x6-cell-tool')
-
-      if (isMovingToTool) {
-        // 鼠标移动到工具上，不移除工具
-        return
-      }
-
-      // 使用延迟移除，给用户更多时间点击工具按钮
-      setTimeout(() => {
-        // 再次检查边是否仍然没有被hover
-        const edgeElement = document.querySelector(`[data-cell-id="${edge.id}"]`)
-        const isHovered = edgeElement?.matches(':hover') ||
-                         edgeElement?.querySelector(':hover')
-        const toolElement = document.querySelector(`.x6-edge-tool:hover, .x6-cell-tool:hover`)
-
-        if (!isHovered && !toolElement) {
-          edge.attr('line/stroke', '#5F6368')
-          edge.attr('line/strokeWidth', 2)
-          edge.attr('line/targetMarker/fill', '#5F6368')
-          edge.removeTools()
-        }
-      }, 100)
+      edge.attr('line/stroke', '#5F6368')
+      edge.attr('line/strokeWidth', 2)
+      edge.attr('line/targetMarker/fill', '#5F6368')
+      edge.removeTools()
     }
   })
 
@@ -859,12 +882,21 @@ const bindEvents = () => {
     return false
   })
 
-  // 删除（✅ 优化：添加操作提示）
+  // 删除（✅ 优化：添加操作提示，支持删除边并通知父组件）
   graph.bindKey(['delete', 'backspace'], () => {
     const cells = graph!.getSelectedCells()
     if (cells.length) {
       const nodeCount = cells.filter(cell => cell.isNode()).length
       const edgeCount = cells.filter(cell => cell.isEdge()).length
+
+      // ✅ 修复：删除边时触发 edge:removed 事件通知父组件
+      cells.filter(cell => cell.isEdge()).forEach(edge => {
+        const edgeData = edge.getData() as Edge
+        if (edgeData) {
+          emit('edge:removed', edgeData)
+        }
+      })
+
       graph!.removeCells(cells)
 
       // ✅ 显示操作提示
@@ -1076,6 +1108,10 @@ const addNode = (nodeData: Node): X6Node | null => {
   // Update text content after node creation to avoid overriding default attrs
   node.attr('label/text', nodeData.name)
   node.attr('meta/text', metaText)
+
+  // ✅ 更新 title 元素用于悬停提示，显示完整文本
+  node.attr('labelTitle/text', nodeData.name)
+  node.attr('metaTitle/text', metaText)
 
   return node
 }
@@ -1912,6 +1948,61 @@ defineExpose({
     transform: translateX(-50%) translateY(-10px);
   }
 
+  // ✅ 新增：节点悬停提示样式
+  .node-tooltip {
+    position: absolute;
+    transform: translate(-50%, -100%);
+    padding: 8px 12px;
+    background: rgba(0, 0, 0, 0.9);
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 1200;
+    pointer-events: none;
+    white-space: nowrap;
+    max-width: 400px;
+
+    .tooltip-title {
+      color: #FFFFFF;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1.4;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .tooltip-meta {
+      color: rgba(255, 255, 255, 0.7);
+      font-size: 11px;
+      margin-top: 2px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    // 添加小箭头
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 6px 6px 0 6px;
+      border-style: solid;
+      border-color: rgba(0, 0, 0, 0.9) transparent transparent transparent;
+    }
+  }
+
+  // Tooltip 动画
+  .tooltip-enter-active,
+  .tooltip-leave-active {
+    transition: all 0.2s ease;
+  }
+
+  .tooltip-enter-from,
+  .tooltip-leave-to {
+    opacity: 0;
+    transform: translate(-50%, -100%) translateY(5px);
+  }
+
   // ✅ 优化：选中计数指示器（改到底部左侧，避免遮挡节点）
   .selection-indicator {
     position: absolute;
@@ -2077,47 +2168,20 @@ defineExpose({
     }
   }
 
-  // 工具按钮样式
+  // 边工具样式（顶点调整工具）
   :deep(.x6-edge-tool) {
     cursor: pointer;
-    pointer-events: all !important;  // ✅ 确保工具按钮可以接收鼠标事件
 
-    .x6-edge-tool-remove {
-      fill: #FFFFFF;
-      stroke: #EA4335;
+    // 顶点工具样式
+    circle {
+      transition: all 0.2s ease;
 
       &:hover {
-        fill: #EA4335;
+        fill: #E8F0FE;
+        stroke: #2D6EED;
+        r: 6;
       }
     }
-
-    // ✅ button-remove 工具的样式
-    g {
-      cursor: pointer;
-      pointer-events: all !important;
-
-      circle {
-        transition: all 0.2s ease;
-        pointer-events: all !important;
-
-        &:hover {
-          fill: #FEE2E2;
-          stroke: #DC2626;
-          transform: scale(1.1);
-        }
-      }
-
-      path {
-        pointer-events: none;  // 图标不需要事件，让circle处理
-      }
-    }
-  }
-
-  // ✅ 确保工具容器可以接收事件
-  :deep(.x6-cell-tool),
-  :deep(.x6-edge-tool-wrap),
-  :deep(.x6-cell-tool-wrap) {
-    pointer-events: all !important;
   }
 
   :deep(.x6-node-tool) {
