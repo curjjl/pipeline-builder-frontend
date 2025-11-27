@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { getDatasetData, getDatasetDataById, getDatasetMeta } from '@/mock/datasets'
 import { applyTransforms, joinDatasets, type Transform, type TransformResult } from '@/utils/transform'
+import * as indexedDBService from '@/utils/indexedDB'
+import type { PipelineData, DatasetData } from '@/utils/indexedDB'
 
 export interface Node {
   id: string
@@ -38,6 +39,8 @@ interface PipelineState {
   isDirty: boolean
   nodeDataCache: Map<string, any[]>
   transformCache: Map<string, Transform[]>
+  isInitialized: boolean
+  datasetCache: Map<string, DatasetData>
 }
 
 export const usePipelineStore = defineStore('pipeline', {
@@ -49,7 +52,9 @@ export const usePipelineStore = defineStore('pipeline', {
     selectedEdges: [],
     isDirty: false,
     nodeDataCache: new Map(),
-    transformCache: new Map()
+    transformCache: new Map(),
+    isInitialized: false,
+    datasetCache: new Map()
   }),
 
   getters: {
@@ -96,6 +101,69 @@ export const usePipelineStore = defineStore('pipeline', {
       if (!(this.transformCache instanceof Map)) {
         this.transformCache = new Map(Object.entries(this.transformCache || {}))
       }
+      if (!(this.datasetCache instanceof Map)) {
+        this.datasetCache = new Map(Object.entries(this.datasetCache || {}))
+      }
+    },
+
+    // 初始化 IndexedDB 和内置数据集
+    async initializeStore() {
+      if (this.isInitialized) return
+
+      try {
+        // 初始化数据库
+        await indexedDBService.initDatabase()
+        // 初始化内置数据集
+        await indexedDBService.initBuiltinDatasets()
+        this.isInitialized = true
+        console.log('Pipeline store initialized with IndexedDB')
+      } catch (error) {
+        console.error('Failed to initialize pipeline store:', error)
+        throw error
+      }
+    },
+
+    // 获取数据集数据（从 IndexedDB）
+    async getDatasetData(datasetId: string): Promise<any[]> {
+      this.ensureMapsInitialized()
+
+      // 检查缓存
+      const cached = this.datasetCache.get(datasetId)
+      if (cached) {
+        return cached.data
+      }
+
+      // 从 IndexedDB 获取
+      const dataset = await indexedDBService.getDataset(datasetId)
+      if (dataset) {
+        this.datasetCache.set(datasetId, dataset)
+        return dataset.data
+      }
+
+      return []
+    },
+
+    // 获取数据集元信息
+    async getDatasetMeta(datasetId: string): Promise<DatasetData | undefined> {
+      this.ensureMapsInitialized()
+
+      // 检查缓存
+      const cached = this.datasetCache.get(datasetId)
+      if (cached) {
+        return cached
+      }
+
+      // 从 IndexedDB 获取
+      const dataset = await indexedDBService.getDataset(datasetId)
+      if (dataset) {
+        this.datasetCache.set(datasetId, dataset)
+      }
+      return dataset
+    },
+
+    // 获取所有可用数据集
+    async getAllAvailableDatasets(): Promise<DatasetData[]> {
+      return indexedDBService.getAllDatasets()
     },
 
     setPipeline(pipeline: Pipeline) {
@@ -115,10 +183,11 @@ export const usePipelineStore = defineStore('pipeline', {
       this.nodes.push(node)
       this.isDirty = true
 
-      // 如果是数据集节点，加载数据
+      // 如果是数据集节点，异步加载数据
       if (node.type === 'dataset' && node.data.datasetId) {
-        const data = getDatasetData(node.data.datasetId)
-        this.nodeDataCache.set(node.id, data)
+        this.getDatasetData(node.data.datasetId).then(data => {
+          this.nodeDataCache.set(node.id, data)
+        })
       }
     },
 
@@ -240,8 +309,10 @@ export const usePipelineStore = defineStore('pipeline', {
 
       switch (node.type) {
         case 'dataset':
-          // 数据集节点：从数据集管理系统加载（支持用户导入的数据集）
-          data = getDatasetDataById(node.data.datasetId) || getDatasetData(node.data.datasetId)
+          // 数据集节点：从 IndexedDB 加载数据
+          if (node.data.datasetId) {
+            data = await this.getDatasetData(node.data.datasetId)
+          }
           break
 
         case 'transform':
@@ -458,73 +529,134 @@ export const usePipelineStore = defineStore('pipeline', {
       return result
     },
 
-    // 保存Pipeline
+    // 保存Pipeline 到 IndexedDB
     async savePipeline(): Promise<void> {
       if (!this.currentPipeline) {
         throw new Error('No pipeline to save')
       }
 
+      this.ensureMapsInitialized()
+
+      // 更新当前 pipeline 数据
       this.currentPipeline.nodes = this.nodes
       this.currentPipeline.edges = this.edges
       this.currentPipeline.updatedAt = new Date().toISOString()
 
-      // 保存到localStorage（模拟后端）
-      const pipelineData = {
-        ...this.currentPipeline,
-        nodeDataCache: Object.fromEntries(this.nodeDataCache),
-        transformCache: Object.fromEntries(this.transformCache)
+      // 深度克隆以移除 Vue 响应式代理，确保数据可被 IndexedDB 存储
+      const plainNodes = JSON.parse(JSON.stringify(this.nodes))
+      const plainEdges = JSON.parse(JSON.stringify(this.edges))
+
+      // 构建完整的 pipeline 数据
+      const pipelineData: PipelineData = {
+        id: this.currentPipeline.id,
+        name: this.currentPipeline.name,
+        description: this.currentPipeline.description,
+        nodes: plainNodes,
+        edges: plainEdges,
+        createdAt: this.currentPipeline.createdAt,
+        updatedAt: this.currentPipeline.updatedAt,
+        version: '1.0',
+        metadata: {
+          nodeCount: this.nodes.length,
+          edgeCount: this.edges.length
+        }
       }
 
-      localStorage.setItem(`pipeline_${this.currentPipeline.id}`, JSON.stringify(pipelineData))
-      console.log('Pipeline saved:', pipelineData)
+      // 保存 pipeline 到 IndexedDB
+      await indexedDBService.savePipeline(pipelineData)
 
+      // 保存各节点的 transform 配置到 IndexedDB
+      for (const [nodeId, transforms] of this.transformCache.entries()) {
+        if (transforms && transforms.length > 0) {
+          // 深度克隆以移除响应式代理
+          const plainTransforms = JSON.parse(JSON.stringify(transforms))
+          await indexedDBService.saveTransforms(this.currentPipeline.id, nodeId, plainTransforms)
+        }
+      }
+
+      console.log('Pipeline saved to IndexedDB:', pipelineData.id)
       this.isDirty = false
     },
 
-    // 加载Pipeline
+    // 从 IndexedDB 加载 Pipeline
     async loadPipeline(id: string): Promise<boolean> {
       try {
-        const data = localStorage.getItem(`pipeline_${id}`)
-        if (!data) {
+        // 确保数据库已初始化
+        await this.initializeStore()
+
+        // 从 IndexedDB 获取 pipeline
+        const pipelineData = await indexedDBService.getPipeline(id)
+        if (!pipelineData) {
+          console.warn('Pipeline not found:', id)
           return false
         }
 
-        const pipelineData = JSON.parse(data)
-
+        // 设置 pipeline 基本信息
         this.setPipeline({
           id: pipelineData.id,
           name: pipelineData.name,
           description: pipelineData.description,
-          nodes: pipelineData.nodes,
-          edges: pipelineData.edges,
+          nodes: pipelineData.nodes || [],
+          edges: pipelineData.edges || [],
           createdAt: pipelineData.createdAt,
           updatedAt: pipelineData.updatedAt
         })
 
-        // 恢复缓存
-        if (pipelineData.nodeDataCache) {
-          this.nodeDataCache = new Map(Object.entries(pipelineData.nodeDataCache))
-        }
-        if (pipelineData.transformCache) {
-          this.transformCache = new Map(Object.entries(pipelineData.transformCache))
+        // 从 IndexedDB 恢复 transform 配置
+        const transformsMap = await indexedDBService.getTransformsByPipeline(id)
+        this.transformCache = transformsMap
+
+        // 重新计算各节点数据
+        for (const node of this.nodes) {
+          if (node.type === 'dataset' && node.data.datasetId) {
+            // 预加载数据集数据
+            const data = await this.getDatasetData(node.data.datasetId)
+            this.nodeDataCache.set(node.id, data)
+          }
         }
 
+        console.log('Pipeline loaded from IndexedDB:', id)
         return true
       } catch (error) {
         console.error('Failed to load pipeline:', error)
         return false
       }
+    },
+
+    // 获取所有已保存的 Pipeline 列表
+    async getAllPipelines(): Promise<PipelineData[]> {
+      await this.initializeStore()
+      return indexedDBService.getAllPipelines()
+    },
+
+    // 删除 Pipeline
+    async deletePipeline(id: string): Promise<void> {
+      await indexedDBService.deletePipeline(id)
+
+      // 如果删除的是当前 pipeline，清空状态
+      if (this.currentPipeline?.id === id) {
+        this.clear()
+      }
+    },
+
+    // 创建新的 Pipeline
+    createNewPipeline(name: string, description?: string): Pipeline {
+      const now = new Date().toISOString()
+      const pipeline: Pipeline = {
+        id: `pipeline_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+        name,
+        description,
+        nodes: [],
+        edges: [],
+        createdAt: now,
+        updatedAt: now
+      }
+
+      this.setPipeline(pipeline)
+      return pipeline
     }
   },
 
-  persist: {
-    enabled: true,
-    strategies: [
-      {
-        key: 'pipeline',
-        storage: localStorage,
-        paths: ['currentPipeline', 'nodes', 'edges']
-      }
-    ]
-  }
+  // 移除 localStorage 持久化，改用 IndexedDB
+  persist: false
 })

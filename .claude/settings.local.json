@@ -36,7 +36,9 @@
       "Bash(mkdir:*)",
       "WebFetch(domain:x6.antv.vision)",
       "WebFetch(domain:github.com)",
-      "mcp__chrome-devtools__hover"
+      "mcp__chrome-devtools__hover",
+      "Bash(cd:*)",
+      "mcp__chrome-devtools__get_console_message"
     ],
     "deny": [],
     "ask": []

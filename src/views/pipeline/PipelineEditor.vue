@@ -839,8 +839,8 @@ import {
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
 import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
-import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
+import type { DatasetData } from '@/utils/indexedDB'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
 import GraphCanvas from '@/components/pipeline/GraphCanvas.vue'
@@ -891,18 +891,28 @@ const selectedNode = computed(() => {
   return null
 })
 
-// Selected node columns
-const selectedNodeColumns = computed(() => {
-  if (!selectedNode.value) return []
+// Selected node columns (async loaded)
+const selectedNodeColumns = ref<any[]>([])
 
-  if (selectedNode.value.type === 'dataset') {
-    const datasetId = selectedNode.value.data?.datasetId
-    const meta = getDatasetMeta(datasetId)
-    return meta?.columns || []
+// 监听选中节点变化，异步加载列信息
+watch(selectedNode, async (node) => {
+  if (!node) {
+    selectedNodeColumns.value = []
+    return
   }
 
-  return []
-})
+  if (node.type === 'dataset') {
+    const datasetId = node.data?.datasetId
+    if (datasetId) {
+      const meta = await pipelineStore.getDatasetMeta(datasetId)
+      selectedNodeColumns.value = meta?.columns || []
+    } else {
+      selectedNodeColumns.value = []
+    }
+  } else {
+    selectedNodeColumns.value = []
+  }
+}, { immediate: true })
 
 // Filtered columns based on search
 const filteredColumns = computed(() => {
@@ -920,10 +930,18 @@ const hasSelection = computed(() => {
   return pipelineStore.selectedNodes.length > 0
 })
 
-// Available datasets for the Add Data menu
-const availableDatasets = computed(() => {
-  return getAllDatasets()
-})
+// Available datasets for the Add Data menu (async loaded)
+const availableDatasets = ref<DatasetData[]>([])
+
+// 异步加载可用数据集
+async function loadAvailableDatasets() {
+  try {
+    availableDatasets.value = await pipelineStore.getAllAvailableDatasets()
+  } catch (error) {
+    console.error('Failed to load datasets:', error)
+    availableDatasets.value = []
+  }
+}
 
 // Outputs list
 const outputs = ref<any[]>([])
@@ -1057,15 +1075,19 @@ let nodeIdCounter = 1
 // ==================== Event Handlers ====================
 
 // Add dataset node
-function handleAddData({ key }: { key: string }) {
+async function handleAddData({ key }: { key: string }) {
   // Handle import data dialog
   if (key === 'import-data') {
     showImportDialog.value = true
     return
   }
 
-  const dataset = getAllDatasets().find(d => d.id === key)
-  if (!dataset) return
+  // 从已加载的数据集列表中查找
+  const dataset = availableDatasets.value.find(d => d.id === key)
+  if (!dataset) {
+    message.error('Dataset not found')
+    return
+  }
 
   const node: Node = {
     id: `node-${nodeIdCounter++}`,
@@ -1087,30 +1109,74 @@ function handleAddData({ key }: { key: string }) {
 }
 
 // Handle imported data
-function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
-  // Add to dataset management system
-  const datasetName = name.replace(/\.(csv|json)$/i, '')
-  const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
-  const datasetId = addUserDataset(datasetName, data, columnNames)
+async function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
+  try {
+    const datasetName = name.replace(/\.(csv|json)$/i, '')
+    const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
+    const datasetId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  // Create dataset node
-  const node: Node = {
-    id: `node-${nodeIdCounter++}`,
-    type: 'dataset',
-    name: datasetName,
-    x: 100 + Math.random() * 100,
-    y: 100 + Math.random() * 100,
-    data: {
-      datasetId: datasetId, // Use the generated dataset ID
-      columnCount: columnNames.length,
-      rowCount: data.length
+    // 推断列类型
+    const columnMetas = columnNames.map(col => {
+      const sampleValue = data[0]?.[col]
+      let type: string = 'String'
+
+      if (typeof sampleValue === 'number') {
+        type = 'Number'
+      } else if (typeof sampleValue === 'boolean') {
+        type = 'Boolean'
+      } else if (sampleValue instanceof Date || (typeof sampleValue === 'string' && !isNaN(Date.parse(sampleValue)))) {
+        type = 'Date'
+      }
+
+      return {
+        name: col,
+        type,
+        nullable: true
+      }
+    })
+
+    // 保存到 IndexedDB
+    const { saveDataset } = await import('@/utils/indexedDB')
+    const now = new Date().toISOString()
+
+    await saveDataset({
+      id: datasetId,
+      name: datasetId,
+      displayName: datasetName,
+      description: `User imported dataset: ${datasetName}`,
+      type: 'user',
+      columns: columnMetas,
+      data: data,
+      rowCount: data.length,
+      createdAt: now,
+      updatedAt: now
+    })
+
+    // 刷新数据集列表
+    await loadAvailableDatasets()
+
+    // Create dataset node
+    const node: Node = {
+      id: `node-${nodeIdCounter++}`,
+      type: 'dataset',
+      name: datasetName,
+      x: 100 + Math.random() * 100,
+      y: 100 + Math.random() * 100,
+      data: {
+        datasetId: datasetId,
+        columnCount: columnNames.length,
+        rowCount: data.length
+      }
     }
-  }
 
-  // Use command pattern for undo/redo support
-  const command = new AddNodeCommand(node, pipelineStore)
-  historyStore.executeCommand(command)
-  message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(node, pipelineStore)
+    historyStore.executeCommand(command)
+    message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+  } catch (error) {
+    console.error('Failed to import data:', error)
+    message.error('Failed to import data')
+  }
 }
 
 // Handle data export
@@ -1924,16 +1990,18 @@ function getColumnTypeColor(type: string): string {
   return colorMap[type] || 'default'
 }
 
-// Get column sample values from actual dataset
+// Get column sample values from actual dataset (using cached data)
 function getColumnSampleValues(col: any): string {
   if (!selectedNode.value || selectedNode.value.type !== 'dataset') {
     return 'N/A'
   }
 
-  const datasetId = selectedNode.value.data?.datasetId
-  if (!datasetId) return 'N/A'
+  const nodeId = selectedNode.value.id
+  if (!nodeId) return 'N/A'
 
-  const data = getDatasetData(datasetId)
+  // 从 pipelineStore 的 nodeDataCache 中获取已缓存的数据
+  pipelineStore.ensureMapsInitialized()
+  const data = pipelineStore.nodeDataCache.get(nodeId)
   if (!data || data.length === 0) return 'N/A'
 
   // Get first 3 sample values from actual data
@@ -2344,7 +2412,7 @@ async function handleSave() {
       key: saveKey,
       duration: 3
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving pipeline:', error)
     message.error({ content: 'Failed to save pipeline', key: saveKey })
   }
@@ -2837,28 +2905,35 @@ const handleKeyboardShortcuts = (e: KeyboardEvent) => {
 }
 
 onMounted(async () => {
+  // 确保 store 初始化
+  await pipelineStore.initializeStore()
+
+  // 加载可用数据集
+  await loadAvailableDatasets()
+
   const pipelineId = route.params.id as string
 
-  if (pipelineId) {
+  if (pipelineId && pipelineId !== 'new') {
     // Try to load existing pipeline
     const loaded = await pipelineStore.loadPipeline(pipelineId)
     if (loaded) {
       message.success('Pipeline loaded')
+      // Add keyboard shortcuts
+      document.addEventListener('keydown', handleKeyboardShortcuts)
       return
     }
   }
 
   // Initialize a new pipeline if not loaded
   if (!pipelineStore.currentPipeline) {
-    pipelineStore.setPipeline({
-      id: pipelineId || `pipeline_${Date.now()}`,
-      name: pipelineName.value,
-      description: 'A new data pipeline',
-      nodes: [],
-      edges: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
+    // 从 query 参数获取创建信息
+    const queryName = route.query.name as string
+    const queryDescription = route.query.description as string
+
+    pipelineStore.createNewPipeline(
+      queryName || pipelineName.value,
+      queryDescription || 'A new data pipeline'
+    )
   }
 
   // Add keyboard shortcuts
