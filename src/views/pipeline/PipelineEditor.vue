@@ -287,7 +287,7 @@
         <TransformPanel
           v-if="selectedTransformNode"
           :node="selectedTransformNode"
-          :columns="getNodeColumns(selectedTransformNode)"
+          :columns="selectedTransformNodeColumns"
           :applied-transforms="getNodeTransforms(selectedTransformNode)"
           @close="handleCloseTransformConfig"
           @apply="handleApplyTransform"
@@ -957,6 +957,7 @@ const showGrid = ref(false)
 // Transform config panel
 const showTransformConfig = ref(false)
 const selectedTransformNode = ref<Node | null>(null)
+const selectedTransformNodeColumns = ref<any[]>([])
 
 // Join config panel
 const showJoinConfig = ref(false)
@@ -967,8 +968,13 @@ watch(showTransformConfig, (newVal) => {
   console.log('showTransformConfig changed:', newVal)
 })
 
-watch(selectedTransformNode, (newVal) => {
+watch(selectedTransformNode, async (newVal) => {
   console.log('selectedTransformNode changed:', newVal?.name)
+  if (newVal) {
+    selectedTransformNodeColumns.value = await getNodeColumns(newVal)
+  } else {
+    selectedTransformNodeColumns.value = []
+  }
 })
 
 // Debug: Watch join config state
@@ -1393,9 +1399,10 @@ function handleNodeDoubleClick(node: Node) {
     showJoinConfig.value = false // Close join config if open
     rightPanelVisible.value = true
 
-    // Get columns for debugging
-    const columns = getNodeColumns(node)
-    console.log('Detected columns:', columns)
+    // Get columns for debugging (async)
+    getNodeColumns(node).then(columns => {
+      console.log('Detected columns:', columns)
+    })
 
     message.info('Transform config panel opened')
   } else if (node.type === 'join') {
@@ -2092,13 +2099,16 @@ function handleCloseJoinConfig() {
 }
 
 // Get node columns
-function getNodeColumns(node: Node) {
+async function getNodeColumns(node: Node) {
   if (!node) return []
 
   if (node.type === 'dataset') {
     const datasetId = node.data?.datasetId
-    const meta = getDatasetMeta(datasetId)
-    return meta?.columns || []
+    if (datasetId) {
+      const meta = await pipelineStore.getDatasetMeta(datasetId)
+      return meta?.columns || []
+    }
+    return []
   }
 
   // For transform nodes, get columns from input node
@@ -2107,7 +2117,7 @@ function getNodeColumns(node: Node) {
   if (inputEdge) {
     const inputNode = pipelineStore.nodes.find(n => n.id === inputEdge.source)
     if (inputNode) {
-      return getNodeColumns(inputNode)
+      return await getNodeColumns(inputNode)
     }
   }
 
@@ -2349,63 +2359,31 @@ async function handleSave() {
     return
   }
 
+  if (!pipelineStore.currentPipeline) {
+    message.error('No pipeline loaded')
+    return
+  }
+
   const saveKey = 'saving'
   message.loading({ content: 'Saving pipeline...', key: saveKey })
 
   try {
-    // Get current graph data from GraphCanvas
-    const graph = canvasRef.value?.getGraph()
-
-    if (!graph) {
-      message.error({ content: 'Unable to get graph data', key: saveKey })
-      return
-    }
-
-    // Convert X6 Graph to Pipeline JSON format
-    const pipelineData = graphToPipeline(graph, {
-      name: pipelineName.value,
-      description: nodeDescription.value || 'Pipeline created in Pipeline Builder',
-      version: '1.0.0',
-      metadata: {
-        category: 'data-processing',
-        tags: [],
-        owner: 'Gena Coblenz',
-        visibility: 'private',
-        status: 'draft',
-        lastSaved: new Date().toISOString()
-      },
-      configuration: {
-        execution: {
-          mode: 'auto'
-        }
-      }
-    })
-
-    // Output complete Pipeline data structure to console
-    console.log('====================================')
-    console.log('Pipeline Save - Complete Data Structure')
-    console.log('====================================')
-    console.log('Pipeline Data:', pipelineData)
-    console.log('------------------------------------')
-    console.log('Nodes Count:', pipelineData.graph.nodes.length)
-    console.log('Edges Count:', pipelineData.graph.edges.length)
-    console.log('------------------------------------')
-    console.log('Nodes Detail:')
-    pipelineData.graph.nodes.forEach((node, index) => {
-      console.log(`  [${index + 1}] ${node.label} (${node.type})`, node)
-    })
-    console.log('------------------------------------')
-    console.log('Edges Detail:')
-    pipelineData.graph.edges.forEach((edge, index) => {
-      console.log(`  [${index + 1}] ${edge.source.nodeId} -> ${edge.target.nodeId}`, edge)
-    })
-    console.log('====================================')
-    console.log('JSON Format:')
-    console.log(JSON.stringify(pipelineData, null, 2))
-    console.log('====================================')
-
-    // Save to store
+    // 保存到 IndexedDB
     await pipelineStore.savePipeline()
+
+    // 输出保存的数据结构到控制台（用于调试）
+    console.log('====================================')
+    console.log('Pipeline Saved to IndexedDB')
+    console.log('====================================')
+    console.log('Pipeline ID:', pipelineStore.currentPipeline.id)
+    console.log('Pipeline Name:', pipelineStore.currentPipeline.name)
+    console.log('Nodes Count:', nodes.value.length)
+    console.log('Edges Count:', edges.value.length)
+    console.log('------------------------------------')
+    console.log('Nodes:', nodes.value)
+    console.log('Edges:', edges.value)
+    console.log('Transforms:', Object.fromEntries(pipelineStore.transformCache))
+    console.log('====================================')
 
     message.success({
       content: `Pipeline saved successfully! (${nodes.value.length} nodes, ${edges.value.length} connections)`,
@@ -2414,7 +2392,7 @@ async function handleSave() {
     })
   } catch (error: any) {
     console.error('Error saving pipeline:', error)
-    message.error({ content: 'Failed to save pipeline', key: saveKey })
+    message.error({ content: `Failed to save pipeline: ${error.message}`, key: saveKey })
   }
 }
 
