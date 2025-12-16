@@ -182,7 +182,7 @@ import {
 import DataTable from './DataTable.vue'
 import type { Node } from '@/stores/modules/pipeline'
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
+import { getDatasetDataById, getDatasetMetaById } from '@/mock/datasets'
 import { exportData } from '@/utils/export'
 
 interface Props {
@@ -288,10 +288,10 @@ async function loadData() {
       }
     } else if (props.mode === 'input') {
       // 输入表格模式：加载指定数据集
-      const data = getDatasetData(selectedDataset.value)
+      const data = getDatasetDataById(selectedDataset.value)
       tableData.value = data
 
-      const meta = getDatasetMeta(selectedDataset.value)
+      const meta = getDatasetMetaById(selectedDataset.value)
       if (meta) {
         tableColumns.value = meta.columns
       }

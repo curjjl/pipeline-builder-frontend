@@ -838,7 +838,7 @@ import {
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
 import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
-import { getAllDatasets, getDatasetMeta, getDatasetData, addUserDataset } from '@/mock/datasets'
+import { getAllDatasets, getDatasetMetaById, getDatasetDataById, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
@@ -896,7 +896,7 @@ const selectedNodeColumns = computed(() => {
 
   if (selectedNode.value.type === 'dataset') {
     const datasetId = selectedNode.value.data?.datasetId
-    const meta = getDatasetMeta(datasetId)
+    const meta = getDatasetMetaById(datasetId)
     return meta?.columns || []
   }
 
@@ -1911,7 +1911,7 @@ function getColumnSampleValues(col: any): string {
   const datasetId = selectedNode.value.data?.datasetId
   if (!datasetId) return 'N/A'
 
-  const data = getDatasetData(datasetId)
+  const data = getDatasetDataById(datasetId)
   if (!data || data.length === 0) return 'N/A'
 
   // Get first 3 sample values from actual data
@@ -2007,7 +2007,7 @@ function getNodeColumns(node: Node) {
 
   if (node.type === 'dataset') {
     const datasetId = node.data?.datasetId
-    const meta = getDatasetMeta(datasetId)
+    const meta = getDatasetMetaById(datasetId)
     return meta?.columns || []
   }
 
