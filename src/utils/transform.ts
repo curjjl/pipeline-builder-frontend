@@ -26,6 +26,7 @@ import {
   validateDateFormat,
   ValidationError
 } from './transform-validation'
+import { logger } from './logger'
 
 // ==================== 辅助函数 ====================
 
@@ -897,7 +898,7 @@ function applyAddColumn(data: any[], params: any): any[] {
       newRow[columnName] = value
     } catch (error: any) {
       // 表达式执行失败，记录错误并设置为 null
-      console.warn(`Expression evaluation failed for row: ${error.message}`)
+      logger.warn('Expression evaluation failed for row', { error: error.message, expression, columnName })
       newRow[columnName] = null
     }
 
