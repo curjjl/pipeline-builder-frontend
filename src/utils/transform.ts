@@ -27,6 +27,31 @@ import {
   ValidationError
 } from './transform-validation'
 
+// ==================== 辅助函数 ====================
+
+/**
+ * 检查日期对象是否有效
+ */
+function isValidDate(date: Date): boolean {
+  return date instanceof Date && !isNaN(date.getTime())
+}
+
+/**
+ * 安全地创建日期对象
+ * @param value 日期值
+ * @returns 有效的 Date 对象，如果无效则返回 null
+ */
+function safeParseDate(value: any): Date | null {
+  if (value instanceof Date) {
+    return isValidDate(value) ? value : null
+  }
+
+  const date = new Date(value)
+  return isValidDate(date) ? date : null
+}
+
+// ==================== 类型定义 ====================
+
 export type TransformType =
   // 基础操作
   | 'filter'           // 筛选
@@ -837,26 +862,22 @@ function applyRenameColumns(data: any[], params: any): any[] {
 /**
  * Add Column - 添加计算列（增强版，支持复杂表达式）
  * params: { columnName: string, expression: string, dataType?: string }
+ *
+ * 安全实现：使用自定义表达式求值器，而非 eval() 或 new Function()
+ * 支持的操作：列访问、数学运算、比较、逻辑运算、三元表达式、安全函数调用
  */
 function applyAddColumn(data: any[], params: any): any[] {
   const { columnName, expression, dataType = 'auto' } = params
+
+  // 导入安全的表达式求值器
+  const { evaluateExpression } = require('./expression-evaluator')
 
   return data.map(row => {
     const newRow = { ...row }
 
     try {
-      // 解析表达式并计算值
-      let value: any
-
-      // 简单表达式解析（支持 row.column 访问和基本运算）
-      if (expression.includes('row.')) {
-        // 使用Function创建表达式求值器
-        const func = new Function('row', `return ${expression}`)
-        value = func(row)
-      } else {
-        // 常量表达式
-        value = eval(expression)
-      }
+      // 使用安全的表达式求值器（替代危险的 eval 和 new Function）
+      let value = evaluateExpression(expression, row)
 
       // 类型转换
       if (dataType !== 'auto') {
@@ -874,8 +895,9 @@ function applyAddColumn(data: any[], params: any): any[] {
       }
 
       newRow[columnName] = value
-    } catch (error) {
-      // 表达式执行失败，设置为null
+    } catch (error: any) {
+      // 表达式执行失败，记录错误并设置为 null
+      console.warn(`Expression evaluation failed for row: ${error.message}`)
       newRow[columnName] = null
     }
 
@@ -1469,9 +1491,18 @@ function applyFormatDate(data: any[], params: {
   const { column, format } = params
   return data.map(row => {
     const newRow = { ...row }
+
+    // 使用安全的日期解析
+    const date = safeParseDate(row[column])
+
+    if (!date) {
+      // 无效日期，设置为 null 而不是 NaN
+      newRow[column] = null
+      return newRow
+    }
+
     try {
-      const date = new Date(row[column])
-      // 简单的日期格式化
+      // 简单的日期格式化（已验证日期有效）
       newRow[column] = format
         .replace('YYYY', date.getFullYear().toString())
         .replace('MM', String(date.getMonth() + 1).padStart(2, '0'))
@@ -1479,9 +1510,10 @@ function applyFormatDate(data: any[], params: {
         .replace('HH', String(date.getHours()).padStart(2, '0'))
         .replace('mm', String(date.getMinutes()).padStart(2, '0'))
         .replace('ss', String(date.getSeconds()).padStart(2, '0'))
-    } catch {
+    } catch (error) {
       newRow[column] = null
     }
+
     return newRow
   })
 }
@@ -1501,45 +1533,54 @@ function applyParseDate(data: any[], params: {
 }
 
 /**
- * Extract Year - 提取年份
+ * Extract Year - 提取年份（带日期验证）
  */
 function applyExtractYear(data: any[], params: {
   column: string
   outputColumn: string
 }): any[] {
   const { column, outputColumn } = params
-  return data.map(row => ({
-    ...row,
-    [outputColumn]: new Date(row[column]).getFullYear()
-  }))
+  return data.map(row => {
+    const date = safeParseDate(row[column])
+    return {
+      ...row,
+      [outputColumn]: date ? date.getFullYear() : null
+    }
+  })
 }
 
 /**
- * Extract Month - 提取月份
+ * Extract Month - 提取月份（带日期验证）
  */
 function applyExtractMonth(data: any[], params: {
   column: string
   outputColumn: string
 }): any[] {
   const { column, outputColumn } = params
-  return data.map(row => ({
-    ...row,
-    [outputColumn]: new Date(row[column]).getMonth() + 1
-  }))
+  return data.map(row => {
+    const date = safeParseDate(row[column])
+    return {
+      ...row,
+      [outputColumn]: date ? date.getMonth() + 1 : null
+    }
+  })
 }
 
 /**
- * Extract Day - 提取日期
+ * Extract Day - 提取日期（带日期验证）
  */
 function applyExtractDay(data: any[], params: {
   column: string
   outputColumn: string
 }): any[] {
   const { column, outputColumn } = params
-  return data.map(row => ({
-    ...row,
-    [outputColumn]: new Date(row[column]).getDate()
-  }))
+  return data.map(row => {
+    const date = safeParseDate(row[column])
+    return {
+      ...row,
+      [outputColumn]: date ? date.getDate() : null
+    }
+  })
 }
 
 /**
