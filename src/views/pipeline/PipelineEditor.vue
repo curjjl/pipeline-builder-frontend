@@ -228,6 +228,7 @@
           @node:contextmenu="handleNodeContextMenu"
           @node:moved="handleNodeMoved"
           @edge:added="handleEdgeAdded"
+          @edge:removed="handleEdgeRemoved"
           @edge:contextmenu="handleEdgeContextMenu"
           @canvas:click="handleCanvasClick"
           @canvas:contextmenu="handleCanvasContextMenu"
@@ -286,7 +287,7 @@
         <TransformPanel
           v-if="selectedTransformNode"
           :node="selectedTransformNode"
-          :columns="getNodeColumns(selectedTransformNode)"
+          :columns="selectedTransformNodeColumns"
           :applied-transforms="getNodeTransforms(selectedTransformNode)"
           @close="handleCloseTransformConfig"
           @apply="handleApplyTransform"
@@ -840,6 +841,7 @@ import { usePipelineStore } from '@/stores/modules/pipeline'
 import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
 import { getAllDatasets, getDatasetMetaById, getDatasetDataById, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
+import type { DatasetData } from '@/utils/indexedDB'
 import { graphToPipeline } from '@/utils/pipelineTransform'
 
 import GraphCanvas from '@/components/pipeline/GraphCanvas.vue'
@@ -890,9 +892,8 @@ const selectedNode = computed(() => {
   return null
 })
 
-// Selected node columns
-const selectedNodeColumns = computed(() => {
-  if (!selectedNode.value) return []
+// Selected node columns (async loaded)
+const selectedNodeColumns = ref<any[]>([])
 
   if (selectedNode.value.type === 'dataset') {
     const datasetId = selectedNode.value.data?.datasetId
@@ -900,8 +901,18 @@ const selectedNodeColumns = computed(() => {
     return meta?.columns || []
   }
 
-  return []
-})
+  if (node.type === 'dataset') {
+    const datasetId = node.data?.datasetId
+    if (datasetId) {
+      const meta = await pipelineStore.getDatasetMeta(datasetId)
+      selectedNodeColumns.value = meta?.columns || []
+    } else {
+      selectedNodeColumns.value = []
+    }
+  } else {
+    selectedNodeColumns.value = []
+  }
+}, { immediate: true })
 
 // Filtered columns based on search
 const filteredColumns = computed(() => {
@@ -919,10 +930,18 @@ const hasSelection = computed(() => {
   return pipelineStore.selectedNodes.length > 0
 })
 
-// Available datasets for the Add Data menu
-const availableDatasets = computed(() => {
-  return getAllDatasets()
-})
+// Available datasets for the Add Data menu (async loaded)
+const availableDatasets = ref<DatasetData[]>([])
+
+// 异步加载可用数据集
+async function loadAvailableDatasets() {
+  try {
+    availableDatasets.value = await pipelineStore.getAllAvailableDatasets()
+  } catch (error) {
+    console.error('Failed to load datasets:', error)
+    availableDatasets.value = []
+  }
+}
 
 // Outputs list
 const outputs = ref<any[]>([])
@@ -938,6 +957,7 @@ const showGrid = ref(false)
 // Transform config panel
 const showTransformConfig = ref(false)
 const selectedTransformNode = ref<Node | null>(null)
+const selectedTransformNodeColumns = ref<any[]>([])
 
 // Join config panel
 const showJoinConfig = ref(false)
@@ -948,8 +968,13 @@ watch(showTransformConfig, (newVal) => {
   console.log('showTransformConfig changed:', newVal)
 })
 
-watch(selectedTransformNode, (newVal) => {
+watch(selectedTransformNode, async (newVal) => {
   console.log('selectedTransformNode changed:', newVal?.name)
+  if (newVal) {
+    selectedTransformNodeColumns.value = await getNodeColumns(newVal)
+  } else {
+    selectedTransformNodeColumns.value = []
+  }
 })
 
 // Debug: Watch join config state
@@ -1056,15 +1081,19 @@ let nodeIdCounter = 1
 // ==================== Event Handlers ====================
 
 // Add dataset node
-function handleAddData({ key }: { key: string }) {
+async function handleAddData({ key }: { key: string }) {
   // Handle import data dialog
   if (key === 'import-data') {
     showImportDialog.value = true
     return
   }
 
-  const dataset = getAllDatasets().find(d => d.id === key)
-  if (!dataset) return
+  // 从已加载的数据集列表中查找
+  const dataset = availableDatasets.value.find(d => d.id === key)
+  if (!dataset) {
+    message.error('Dataset not found')
+    return
+  }
 
   const node: Node = {
     id: `node-${nodeIdCounter++}`,
@@ -1086,30 +1115,74 @@ function handleAddData({ key }: { key: string }) {
 }
 
 // Handle imported data
-function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
-  // Add to dataset management system
-  const datasetName = name.replace(/\.(csv|json)$/i, '')
-  const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
-  const datasetId = addUserDataset(datasetName, data, columnNames)
+async function handleDataImport({ data, columns, name }: { data: any[], columns: any[], name: string }) {
+  try {
+    const datasetName = name.replace(/\.(csv|json)$/i, '')
+    const columnNames = columns.map(col => (typeof col === 'string' ? col : col.name))
+    const datasetId = `user_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
 
-  // Create dataset node
-  const node: Node = {
-    id: `node-${nodeIdCounter++}`,
-    type: 'dataset',
-    name: datasetName,
-    x: 100 + Math.random() * 100,
-    y: 100 + Math.random() * 100,
-    data: {
-      datasetId: datasetId, // Use the generated dataset ID
-      columnCount: columnNames.length,
-      rowCount: data.length
+    // 推断列类型
+    const columnMetas = columnNames.map(col => {
+      const sampleValue = data[0]?.[col]
+      let type: string = 'String'
+
+      if (typeof sampleValue === 'number') {
+        type = 'Number'
+      } else if (typeof sampleValue === 'boolean') {
+        type = 'Boolean'
+      } else if (sampleValue instanceof Date || (typeof sampleValue === 'string' && !isNaN(Date.parse(sampleValue)))) {
+        type = 'Date'
+      }
+
+      return {
+        name: col,
+        type,
+        nullable: true
+      }
+    })
+
+    // 保存到 IndexedDB
+    const { saveDataset } = await import('@/utils/indexedDB')
+    const now = new Date().toISOString()
+
+    await saveDataset({
+      id: datasetId,
+      name: datasetId,
+      displayName: datasetName,
+      description: `User imported dataset: ${datasetName}`,
+      type: 'user',
+      columns: columnMetas,
+      data: data,
+      rowCount: data.length,
+      createdAt: now,
+      updatedAt: now
+    })
+
+    // 刷新数据集列表
+    await loadAvailableDatasets()
+
+    // Create dataset node
+    const node: Node = {
+      id: `node-${nodeIdCounter++}`,
+      type: 'dataset',
+      name: datasetName,
+      x: 100 + Math.random() * 100,
+      y: 100 + Math.random() * 100,
+      data: {
+        datasetId: datasetId,
+        columnCount: columnNames.length,
+        rowCount: data.length
+      }
     }
-  }
 
-  // Use command pattern for undo/redo support
-  const command = new AddNodeCommand(node, pipelineStore)
-  historyStore.executeCommand(command)
-  message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+    // Use command pattern for undo/redo support
+    const command = new AddNodeCommand(node, pipelineStore)
+    historyStore.executeCommand(command)
+    message.success(`Imported ${datasetName}: ${data.length} rows × ${columnNames.length} columns`)
+  } catch (error) {
+    console.error('Failed to import data:', error)
+    message.error('Failed to import data')
+  }
 }
 
 // Handle data export
@@ -1291,15 +1364,20 @@ function showCleanActionsMenu(node: Node) {
 
   // Get node position and size
   const bbox = cell.getBBox()
-  const zoom = graph.zoom()
 
-  // Calculate menu position (to the right of node)
-  const canvasContainer = graph.container
-  const containerRect = canvasContainer.getBoundingClientRect()
+  // ✅ 修复：使用 localToPage 方法正确转换坐标
+  // 这个方法会考虑画布的缩放和平移偏移
+  const nodeRightCenter = {
+    x: bbox.x + bbox.width + 20,  // 节点右边界 + 20px 间距
+    y: bbox.y + bbox.height / 2   // 节点垂直中心
+  }
+
+  // 将画布坐标转换为页面坐标
+  const pagePoint = graph.localToPage(nodeRightCenter)
 
   // Position menu to the right of the node
-  cleanMenuX.value = containerRect.left + (bbox.x + bbox.width + 20) * zoom
-  cleanMenuY.value = containerRect.top + (bbox.y + bbox.height / 2 - 60) * zoom
+  cleanMenuX.value = pagePoint.x
+  cleanMenuY.value = pagePoint.y - 60  // 向上偏移 60px，使菜单垂直居中
 
   cleanMenuTargetNode.value = node
   cleanMenuVisible.value = true
@@ -1321,9 +1399,10 @@ function handleNodeDoubleClick(node: Node) {
     showJoinConfig.value = false // Close join config if open
     rightPanelVisible.value = true
 
-    // Get columns for debugging
-    const columns = getNodeColumns(node)
-    console.log('Detected columns:', columns)
+    // Get columns for debugging (async)
+    getNodeColumns(node).then(columns => {
+      console.log('Detected columns:', columns)
+    })
 
     message.info('Transform config panel opened')
   } else if (node.type === 'join') {
@@ -1505,6 +1584,14 @@ function handleEdgeAdded(edge: Edge) {
   const command = new AddEdgeCommand(edge, pipelineStore)
   historyStore.executeCommand(command)
   message.success('Nodes connected')
+}
+
+// Edge removed (from canvas button-remove tool)
+function handleEdgeRemoved(edge: Edge) {
+  // 从store中删除边数据
+  const command = new DeleteEdgeCommand(edge, pipelineStore)
+  historyStore.executeCommand(command)
+  message.success('Connection deleted')
 }
 
 // Edge context menu
@@ -1770,6 +1857,14 @@ function handleContextMenuSelect(key: string) {
         if (edge) {
           const command = new DeleteEdgeCommand(edge, pipelineStore)
           historyStore.executeCommand(command)
+          // 同步删除X6图形视图中的边
+          const graph = canvasRef.value?.getGraph()
+          if (graph) {
+            const cell = graph.getCellById(target.id)
+            if (cell) {
+              graph.removeCell(cell)
+            }
+          }
           message.success('Connection deleted')
         }
       } else {
@@ -1902,14 +1997,14 @@ function getColumnTypeColor(type: string): string {
   return colorMap[type] || 'default'
 }
 
-// Get column sample values from actual dataset
+// Get column sample values from actual dataset (using cached data)
 function getColumnSampleValues(col: any): string {
   if (!selectedNode.value || selectedNode.value.type !== 'dataset') {
     return 'N/A'
   }
 
-  const datasetId = selectedNode.value.data?.datasetId
-  if (!datasetId) return 'N/A'
+  const nodeId = selectedNode.value.id
+  if (!nodeId) return 'N/A'
 
   const data = getDatasetDataById(datasetId)
   if (!data || data.length === 0) return 'N/A'
@@ -2002,7 +2097,7 @@ function handleCloseJoinConfig() {
 }
 
 // Get node columns
-function getNodeColumns(node: Node) {
+async function getNodeColumns(node: Node) {
   if (!node) return []
 
   if (node.type === 'dataset') {
@@ -2017,7 +2112,7 @@ function getNodeColumns(node: Node) {
   if (inputEdge) {
     const inputNode = pipelineStore.nodes.find(n => n.id === inputEdge.source)
     if (inputNode) {
-      return getNodeColumns(inputNode)
+      return await getNodeColumns(inputNode)
     }
   }
 
@@ -2201,6 +2296,9 @@ function handleClearSelection() {
 
   graph.cleanSelection()
   pipelineStore.setSelectedNodes([])
+  // 隐藏Transform/Join/Union菜单
+  cleanMenuVisible.value = false
+  cleanMenuTargetNode.value = null
   message.success('Selection cleared')
 }
 
@@ -2256,72 +2354,40 @@ async function handleSave() {
     return
   }
 
+  if (!pipelineStore.currentPipeline) {
+    message.error('No pipeline loaded')
+    return
+  }
+
   const saveKey = 'saving'
   message.loading({ content: 'Saving pipeline...', key: saveKey })
 
   try {
-    // Get current graph data from GraphCanvas
-    const graph = canvasRef.value?.getGraph()
-
-    if (!graph) {
-      message.error({ content: 'Unable to get graph data', key: saveKey })
-      return
-    }
-
-    // Convert X6 Graph to Pipeline JSON format
-    const pipelineData = graphToPipeline(graph, {
-      name: pipelineName.value,
-      description: nodeDescription.value || 'Pipeline created in Pipeline Builder',
-      version: '1.0.0',
-      metadata: {
-        category: 'data-processing',
-        tags: [],
-        owner: 'Gena Coblenz',
-        visibility: 'private',
-        status: 'draft',
-        lastSaved: new Date().toISOString()
-      },
-      configuration: {
-        execution: {
-          mode: 'auto'
-        }
-      }
-    })
-
-    // Output complete Pipeline data structure to console
-    console.log('====================================')
-    console.log('Pipeline Save - Complete Data Structure')
-    console.log('====================================')
-    console.log('Pipeline Data:', pipelineData)
-    console.log('------------------------------------')
-    console.log('Nodes Count:', pipelineData.graph.nodes.length)
-    console.log('Edges Count:', pipelineData.graph.edges.length)
-    console.log('------------------------------------')
-    console.log('Nodes Detail:')
-    pipelineData.graph.nodes.forEach((node, index) => {
-      console.log(`  [${index + 1}] ${node.label} (${node.type})`, node)
-    })
-    console.log('------------------------------------')
-    console.log('Edges Detail:')
-    pipelineData.graph.edges.forEach((edge, index) => {
-      console.log(`  [${index + 1}] ${edge.source.nodeId} -> ${edge.target.nodeId}`, edge)
-    })
-    console.log('====================================')
-    console.log('JSON Format:')
-    console.log(JSON.stringify(pipelineData, null, 2))
-    console.log('====================================')
-
-    // Save to store
+    // 保存到 IndexedDB
     await pipelineStore.savePipeline()
+
+    // 输出保存的数据结构到控制台（用于调试）
+    console.log('====================================')
+    console.log('Pipeline Saved to IndexedDB')
+    console.log('====================================')
+    console.log('Pipeline ID:', pipelineStore.currentPipeline.id)
+    console.log('Pipeline Name:', pipelineStore.currentPipeline.name)
+    console.log('Nodes Count:', nodes.value.length)
+    console.log('Edges Count:', edges.value.length)
+    console.log('------------------------------------')
+    console.log('Nodes:', nodes.value)
+    console.log('Edges:', edges.value)
+    console.log('Transforms:', Object.fromEntries(pipelineStore.transformCache))
+    console.log('====================================')
 
     message.success({
       content: `Pipeline saved successfully! (${nodes.value.length} nodes, ${edges.value.length} connections)`,
       key: saveKey,
       duration: 3
     })
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error saving pipeline:', error)
-    message.error({ content: 'Failed to save pipeline', key: saveKey })
+    message.error({ content: `Failed to save pipeline: ${error.message}`, key: saveKey })
   }
 }
 
@@ -2812,28 +2878,35 @@ const handleKeyboardShortcuts = (e: KeyboardEvent) => {
 }
 
 onMounted(async () => {
+  // 确保 store 初始化
+  await pipelineStore.initializeStore()
+
+  // 加载可用数据集
+  await loadAvailableDatasets()
+
   const pipelineId = route.params.id as string
 
-  if (pipelineId) {
+  if (pipelineId && pipelineId !== 'new') {
     // Try to load existing pipeline
     const loaded = await pipelineStore.loadPipeline(pipelineId)
     if (loaded) {
       message.success('Pipeline loaded')
+      // Add keyboard shortcuts
+      document.addEventListener('keydown', handleKeyboardShortcuts)
       return
     }
   }
 
   // Initialize a new pipeline if not loaded
   if (!pipelineStore.currentPipeline) {
-    pipelineStore.setPipeline({
-      id: pipelineId || `pipeline_${Date.now()}`,
-      name: pipelineName.value,
-      description: 'A new data pipeline',
-      nodes: [],
-      edges: [],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    })
+    // 从 query 参数获取创建信息
+    const queryName = route.query.name as string
+    const queryDescription = route.query.description as string
+
+    pipelineStore.createNewPipeline(
+      queryName || pipelineName.value,
+      queryDescription || 'A new data pipeline'
+    )
   }
 
   // Add keyboard shortcuts
