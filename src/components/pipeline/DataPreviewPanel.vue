@@ -182,7 +182,7 @@ import {
 import DataTable from './DataTable.vue'
 import type { Node } from '@/stores/modules/pipeline'
 import { usePipelineStore } from '@/stores/modules/pipeline'
-import { getDatasetData, getDatasetMeta } from '@/mock/datasets'
+import { getDatasetDataById, getDatasetMetaById } from '@/mock/datasets'
 import { exportData } from '@/utils/export'
 
 interface Props {
@@ -276,6 +276,15 @@ async function loadData() {
     if (props.node) {
       // 从store获取节点数据
       const data = await pipelineStore.getNodeData(props.node.id)
+
+      // 验证数据有效性
+      if (!data) {
+        message.warning('No data available for this node')
+        tableData.value = []
+        tableColumns.value = []
+        return
+      }
+
       tableData.value = data
 
       // 检测列
@@ -288,16 +297,24 @@ async function loadData() {
       }
     } else if (props.mode === 'input') {
       // 输入表格模式：加载指定数据集
-      const data = getDatasetData(selectedDataset.value)
-      tableData.value = data
+      const data = getDatasetDataById(selectedDataset.value)
+      const meta = getDatasetMetaById(selectedDataset.value)
 
-      const meta = getDatasetMeta(selectedDataset.value)
-      if (meta) {
-        tableColumns.value = meta.columns
+      // 验证数据集存在
+      if (!data || !meta) {
+        message.error(`Dataset not found: ${selectedDataset.value}`)
+        tableData.value = []
+        tableColumns.value = []
+        return
       }
+
+      tableData.value = data
+      tableColumns.value = meta.columns
     }
   } catch (error: any) {
     message.error('Failed to load data: ' + error.message)
+    tableData.value = []
+    tableColumns.value = []
   } finally {
     loading.value = false
   }

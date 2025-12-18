@@ -839,6 +839,7 @@ import {
 
 import { usePipelineStore } from '@/stores/modules/pipeline'
 import { useHistoryStore, AddNodeCommand, DeleteNodeCommand, AddEdgeCommand, DeleteEdgeCommand, MoveNodeCommand, UpdateNodeConfigCommand, UpdateNodeLabelCommand, BatchCommand } from '@/stores/modules/history'
+import { getAllDatasets, getDatasetMetaById, getDatasetDataById, addUserDataset } from '@/mock/datasets'
 import type { Node, Edge } from '@/stores/modules/pipeline'
 import type { DatasetData } from '@/utils/indexedDB'
 import { graphToPipeline } from '@/utils/pipelineTransform'
@@ -894,11 +895,10 @@ const selectedNode = computed(() => {
 // Selected node columns (async loaded)
 const selectedNodeColumns = ref<any[]>([])
 
-// 监听选中节点变化，异步加载列信息
-watch(selectedNode, async (node) => {
-  if (!node) {
-    selectedNodeColumns.value = []
-    return
+  if (selectedNode.value.type === 'dataset') {
+    const datasetId = selectedNode.value.data?.datasetId
+    const meta = getDatasetMetaById(datasetId)
+    return meta?.columns || []
   }
 
   if (node.type === 'dataset') {
@@ -2006,9 +2006,7 @@ function getColumnSampleValues(col: any): string {
   const nodeId = selectedNode.value.id
   if (!nodeId) return 'N/A'
 
-  // 从 pipelineStore 的 nodeDataCache 中获取已缓存的数据
-  pipelineStore.ensureMapsInitialized()
-  const data = pipelineStore.nodeDataCache.get(nodeId)
+  const data = getDatasetDataById(datasetId)
   if (!data || data.length === 0) return 'N/A'
 
   // Get first 3 sample values from actual data
@@ -2104,11 +2102,8 @@ async function getNodeColumns(node: Node) {
 
   if (node.type === 'dataset') {
     const datasetId = node.data?.datasetId
-    if (datasetId) {
-      const meta = await pipelineStore.getDatasetMeta(datasetId)
-      return meta?.columns || []
-    }
-    return []
+    const meta = getDatasetMetaById(datasetId)
+    return meta?.columns || []
   }
 
   // For transform nodes, get columns from input node

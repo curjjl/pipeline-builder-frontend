@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { getDatasetDataById, getDatasetMetaById } from '@/mock/datasets'
 import { applyTransforms, joinDatasets, type Transform, type TransformResult } from '@/utils/transform'
 import * as indexedDBService from '@/utils/indexedDB'
 import type { PipelineData, DatasetData } from '@/utils/indexedDB'
@@ -185,9 +186,8 @@ export const usePipelineStore = defineStore('pipeline', {
 
       // 如果是数据集节点，异步加载数据
       if (node.type === 'dataset' && node.data.datasetId) {
-        this.getDatasetData(node.data.datasetId).then(data => {
-          this.nodeDataCache.set(node.id, data)
-        })
+        const data = getDatasetDataById(node.data.datasetId)
+        this.nodeDataCache.set(node.id, data)
       }
     },
 
@@ -309,10 +309,8 @@ export const usePipelineStore = defineStore('pipeline', {
 
       switch (node.type) {
         case 'dataset':
-          // 数据集节点：从 IndexedDB 加载数据
-          if (node.data.datasetId) {
-            data = await this.getDatasetData(node.data.datasetId)
-          }
+          // 数据集节点：从数据集管理系统加载（支持用户导入的数据集）
+          data = getDatasetDataById(node.data.datasetId)
           break
 
         case 'transform':
